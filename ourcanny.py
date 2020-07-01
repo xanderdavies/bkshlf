@@ -44,7 +44,11 @@ def rotateMatrix(im, degrees):
     rows = im.shape[0]
     cols = im.shape[1]
     M = cv.getRotationMatrix2D((cols/2,rows/2),degrees,1)
-    dst = warpAffine(im, M, (cos(degrees) * rows + sin(de) cols, sin(degrees) * (rows + cols)))
+    rads = degrees / 180 * np.pi
+    new_size = ((int) (np.sin(rads) * rows + np.cos(rads) * cols), (int) (np.cos(rads) * rows + np.sin(rads) * cols))
+    print(new_size)
+    print(np.cos(rads), np.sin(rads), rows, cols)
+    dst = cv.warpAffine(im, M, new_size)
     return dst
 
 def connectedComponents(grayImage):
