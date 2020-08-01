@@ -17,6 +17,8 @@ Need train + val data @ "/content/drive/My Drive/bkshlf/(train / val)"
 
 #this is max's comment test
 
+# %% codecell
+
 # !pip list --outdated --format=freeze | grep -v '^\-e' | cut -d = -f 1 | xargs -n1 pip install -U # Update all python packages
 !pip install pyyaml==5.1 pycocotools>=2.0.1
 import torch, torchvision
@@ -24,6 +26,7 @@ print(torch.__version__, torch.cuda.is_available())
 !gcc --version
 # opencv is pre-installed on colab
 
+# %% codecell
 # install detectron2: (colab has CUDA 10.1 + torch 1.5)
 # See https://detectron2.readthedocs.io/tutorials/install.html for instructions
 assert torch.__version__.startswith("1.6") # NOW 1.6, was 1.5
@@ -76,7 +79,7 @@ def get_spine_dicts(img_dir):
     dataset_dicts = []
     for idx, v in enumerate(imgs_anns.values()):
         record = {}
-        
+
         filename = os.path.join(img_dir, v["filename"])
         print(filename)
 
@@ -86,7 +89,7 @@ def get_spine_dicts(img_dir):
         record["image_id"] = idx
         record["height"] = height
         record["width"] = width
-      
+
         annos = v["regions"]
         objs = []
         for annotation in annos:
@@ -128,7 +131,7 @@ for d in ["train", "val"]:
     DatasetCatalog.register("shelf_" + d, lambda d=d: get_spine_dicts("/content/drive/My Drive/bkshlf/" + d))
     MetadataCatalog.get("shelf_" + d).set(thing_classes=["book_spine", "not_spine"])
     # shelf_metadata = MetadataCatalog.get("shelf_train").set(thing_classes=["book_spine", "not_spine"])
-    
+
 shelf_metadata = MetadataCatalog.get("shelf_train")
 
 dataset_dicts = get_spine_dicts("/content/drive/My Drive/bkshlf/train")
@@ -159,7 +162,7 @@ trainer = DefaultTrainer(cfg)
 
 # train
 os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
-trainer = DefaultTrainer(cfg) 
+trainer = DefaultTrainer(cfg)
 trainer.resume_or_load(resume=False)
 trainer.train()
 
@@ -183,12 +186,12 @@ from detectron2.utils.visualizer import ColorMode
 dataset_dicts = get_spine_dicts("/content/drive/My Drive/bkshlf/val")
 
 # test 5 images from val set
-for d in random.sample(dataset_dicts, 5):    
+for d in random.sample(dataset_dicts, 5):
     im = cv2.imread(d["file_name"])
     outputs = predictor(im)
     v = Visualizer(im[:, :, ::-1],
-                   metadata=shelf_metadata, 
-                   scale=0.5, 
+                   metadata=shelf_metadata,
+                   scale=0.5,
                    instance_mode=ColorMode.IMAGE_BW   # remove the colors of unsegmented pixels. This option is only available for segmentation models
     )
     out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
@@ -231,7 +234,7 @@ def cropper(org_image_path, out_file_dir):
     filename = (org_image_path.split("/")[-1]).split(".")[0] # get file name
     img = detection_utils.read_image(org_image_path, format="BGR") # open image
     outputs = predictor(img)
-    instances = outputs["instances"].to('cpu') 
+    instances = outputs["instances"].to('cpu')
     pred_classes = instances.pred_classes
     classes = ["book_spine", "inc_spine", "no_text", "book_cover", "inc_cover"]
     labels = [classes[i] for i in pred_classes] # create labels for pred_classes
@@ -245,9 +248,9 @@ def cropper(org_image_path, out_file_dir):
     boxes = instances.pred_boxes
     if isinstance(boxes, detectron2.structures.boxes.Boxes):
         boxes = boxes.tensor.numpy()
-    else: 
+    else:
         boxes = np.asarray(boxes)
-    
+
     output = np.zeros_like(img)
     output_file_names = []
 
@@ -262,10 +265,10 @@ def cropper(org_image_path, out_file_dir):
             output_file_names.append(f"{out_file_dir}/{filename}_{i}.jpg")
             cropped_img.save(f"{out_file_dir}/{filename}_{i}.jpg")
             # im.save(f"{out_file_dir}/{filename}_{i}.jpg")
-  
+
     return output_file_names
 
-import imutils 
+import imutils
 
 def perspective_transform(image, corners):
     def order_corner_points(corners):
@@ -282,22 +285,22 @@ def perspective_transform(image, corners):
     ordered_corners = order_corner_points(corners)
     top_l, top_r, bottom_r, bottom_l = ordered_corners
 
-    # Determine width of new image which is the max distance between 
+    # Determine width of new image which is the max distance between
     # (bottom right and bottom left) or (top right and top left) x-coordinates
     width_A = np.sqrt(((bottom_r[0] - bottom_l[0]) ** 2) + ((bottom_r[1] - bottom_l[1]) ** 2))
     width_B = np.sqrt(((top_r[0] - top_l[0]) ** 2) + ((top_r[1] - top_l[1]) ** 2))
     width = max(int(width_A), int(width_B))
     print(width)
 
-    # Determine height of new image which is the max distance between 
+    # Determine height of new image which is the max distance between
     # (top right and bottom right) or (top left and bottom left) y-coordinates
     height_A = np.sqrt(((top_r[0] - bottom_r[0]) ** 2) + ((top_r[1] - bottom_r[1]) ** 2))
     height_B = np.sqrt(((top_l[0] - bottom_l[0]) ** 2) + ((top_l[1] - bottom_l[1]) ** 2))
     height = max(int(height_A), int(height_B))
 
-    # Construct new points to obtain top-down view of image in 
+    # Construct new points to obtain top-down view of image in
     # top_r, top_l, bottom_l, bottom_r order
-    dimensions = np.array([[0, 0], [width - 1, 0], [width - 1, height - 1], 
+    dimensions = np.array([[0, 0], [width - 1, 0], [width - 1, height - 1],
                     [0, height - 1]], dtype = "float32")
 
     # Convert to Numpy format
@@ -367,7 +370,7 @@ import cv2
 min_confidence = .5
 image_path = output_file_names[3]
 east_path = "/content/drive/My Drive/bkshlf/frozen_east_text_detection.pb"
-long_side = 672 
+long_side = 672
 padding = 0.05 # PLAY WITH
 
 def decode_predictions(scores, geometry):
@@ -583,7 +586,7 @@ def order_points(pts):
 	# return the ordered coordinates
 	return rect
 
-# HI HI HI 
+# HI HI HI
 # HIIIII
 
 from imutils.object_detection import non_max_suppression
@@ -755,7 +758,7 @@ def order_points(pts):
 #                 category_id = 3
 #             elif "inc_cover" in region_attributes:
 #                 category_id = 4
-            
+
 #             obj = {
 #                 "bbox": [np.min(px), np.min(py), np.max(px), np.max(py)],
 #                 "bbox_mode": BoxMode.XYXY_ABS,
