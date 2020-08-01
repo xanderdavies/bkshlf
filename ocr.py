@@ -21,7 +21,7 @@ import pytesseract
 from pytesseract import Output
 from matplotlib.image import imread
 import scipy.misc
-from detectron2.data import detection_utils
+from detectron2.data.detection_utils import read_image
 import re
 import numpy as np
 import cv2
@@ -218,6 +218,15 @@ def image_reader(org_image_path):
 
     return book_text
 
+# %% example
+src = '/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/val/ideal.JPG'
+out_folder = '/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/output_images'
+
+# CROP BY PREDICTIONS
+output_file_names = cropper(src, out_folder)
+ex_image_path = output_file_names[3]
+print(image_reader(ex_image_path))
+
 
 # %% show results, not incorporated yet
 for ((startX, startY, endX, endY), text) in results:
@@ -236,12 +245,3 @@ for ((startX, startY, endX, endY), text) in results:
     cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
   # show the output image
   cv2_imshow(output)
-
-# %% example
-src = '/content/drive/My Drive/bkshlf/val/ideal.JPG'
-out_folder = '/content/drive/My Drive/bkshlf/output_images'
-
-# CROP BY PREDICTIONS
-output_file_names = cropper(src, out_folder)
-ex_image_path = output_file_names[3]
-print(image_reader(ex_image_path))
