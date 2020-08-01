@@ -1,4 +1,4 @@
-# OCR 
+# OCR
 
 # %% installs
 # !sudo apt install tesseract-ocr
@@ -28,7 +28,6 @@ import cv2
 
 # %% settings
 min_confidence = .5
-ex_image_path = output_file_names[3]
 east_path = "./shelves/frozen_east_text_detection.pb"
 long_side = 672
 padding = 0.05 # PLAY WITH
@@ -70,11 +69,28 @@ def cropper(org_image_path, out_file_dir):
             output = np.where(mask_array_instance[i] == False, 0, img) # KEY LINE - if not mask array, then 255 (white), else copy from img
             # im = rotate_bound(output, 270) # rotate 270
             im = Image.fromarray(output)
-            cropped_img = im.crop(boxes[i])
-            cropped_img = cropped_img.rotate(270)
+            image = im.crop(boxes[i])
+            image = cropped_img.rotate(270)
+
+            # resize done here instead
+            orig = image.copy()
+            (origH, origW) = image.shape[:2]
+            # correctly scale based on long_side provided
+            if origH > origW:
+                short_side = int(((long_side/origH)*origW//32 + 1)*32)
+                (newW, newH) = (short_side, long_side)
+            else:
+                short_side = int(((long_side/origW)*origH//32 + 1)*32)
+                (newW, newH) = (long_side, short_side)
+
+            rW = origW / float(newW)
+            rH = origH / float(newH)
+            # resize the image and grab the new image dimensions
+            image = cv2.resize(image, (newW, newH))
+
+            # save and update file names list
             output_file_names.append(f"{out_file_dir}/{filename}_{i}.jpg")
-            cropped_img.save(f"{out_file_dir}/{filename}_{i}.jpg")
-            # im.save(f"{out_file_dir}/{filename}_{i}.jpg")
+            image.save(f"{out_file_dir}/{filename}_{i}.jpg")
 
     return output_file_names
 
@@ -128,107 +144,82 @@ def decode_predictions(scores, geometry):
 	# return a tuple of the bounding boxes and associated confidences
 	return (rects, confidences)
 
-# %% example
-src = '/content/drive/My Drive/bkshlf/val/ideal.JPG'
-out_folder = '/content/drive/My Drive/bkshlf/output_images'
-
-# CROP BY PREDICTIONS
-output_file_names = cropper(src, out_folder)
-
-
-# %% initialize_image function
-def initialize_image(image_path):
-    # load the input image and grab the image dimensions
-    image = cv2.imread(image_path)
-    image = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE) # ROTATE?
-    orig = image.copy()
-    (origH, origW) = image.shape[:2]
-    # set the new width and height and then determine the ratio in change
-    # for both the width and height
-    if origH > origW:
-        short_side = int(((long_side/origH)*origW//32 + 1)*32)
-        (newW, newH) = (short_side, long_side)
-    else:
-        short_side = int(((long_side/origW)*origH//32 + 1)*32)
-        (newW, newH) = (long_side, short_side)
-
-    rW = origW / float(newW)
-    rH = origH / float(newH)
-    # resize the image and grab the new image dimensions
-    image = cv2.resize(image, (newW, newH))
+# %% read image function
+def image_reader(org_image_path):
+    image = cv2.imread(org_image_path)
     (H, W) = image.shape[:2]
-# %% codecell
-# define the two output layer names for the EAST detector model that
-# we are interested in -- the first is the output probabilities and the
-# second can be used to derive the bounding box coordinates of text
-layerNames = [
-	"feature_fusion/Conv_7/Sigmoid",
-	"feature_fusion/concat_3"]
-# load the pre-trained EAST text detector
-print("[INFO] loading EAST text detector...")
-net = cv2.dnn.readNet(east_path)
 
-# construct a blob from the image and then perform a forward pass of
-# the model to obtain the two output layer sets
-blob = cv2.dnn.blobFromImage(image, 1.0, (W, H),
-	(123.68, 116.78, 103.94), swapRB=True, crop=False)
-net.setInput(blob)
-(scores, geometry) = net.forward(layerNames)
-# decode the predictions, then  apply non-maxima suppression to
-# suppress weak, overlapping bounding boxes
-(rects, confidences) = decode_predictions(scores, geometry)
-if rects == []:
-  print("failed to locate text")
-cv2_imshow(image)
+    # define the two output layer names for the EAST detector model that
+    # we are interested in -- the first is the output probabilities and the
+    # second can be used to derive the bounding box coordinates of text
+    layerNames = [
+    	"feature_fusion/Conv_7/Sigmoid",
+    	"feature_fusion/concat_3"]
+    # load the pre-trained EAST text detector
+    print("[INFO] loading EAST text detector...")
+    net = cv2.dnn.readNet(east_path)
 
-boxes = non_max_suppression(np.array(rects), probs=confidences)
-# %% codecell
- # initialize the list of results
-results = []
-# loop over the bounding boxes
-for (startX, startY, endX, endY) in boxes:
-	# scale the bounding box coordinates based on the respective
-	# ratios
-	startX = int(startX * rW)
-	startY = int(startY * rH)
-	endX = int(endX * rW)
-	endY = int(endY * rH)
-	# in order to obtain a better OCR of the text we can potentially
-	# apply a bit of padding surrounding the bounding box -- here we
-	# are computing the deltas in both the x and y directions
-	dX = int((endX - startX) * padding)
-	dY = int((endY - startY) * padding)
-	# apply padding to each side of the bounding box, respectively
-	startX = max(0, startX - dX)
-	startY = max(0, startY - dY)
-	endX = min(origW, endX + (dX * 2))
-	endY = min(origH, endY + (dY * 2))
-	# extract the actual padded ROI
-	roi = orig[startY:endY, startX:endX]
+    # construct a blob from the image and then perform a forward pass of
+    # the model to obtain the two output layer sets
+    blob = cv2.dnn.blobFromImage(image, 1.0, (W, H),
+    	(123.68, 116.78, 103.94), swapRB=True, crop=False)
+    net.setInput(blob)
+    (scores, geometry) = net.forward(layerNames)
+    # decode the predictions, then  apply non-maxima suppression to
+    # suppress weak, overlapping bounding boxes
+    (rects, confidences) = decode_predictions(scores, geometry)
+    if rects == []:
+      print("failed to locate text")
+    cv2_imshow(image)
 
-  # in order to apply Tesseract v4 to OCR text we must supply
-	# (1) a language, (2) an OEM flag of 4, indicating that the we
-	# wish to use the LSTM neural net model for OCR, and finally
-	# (3) an OEM value, in this case, 7 which implies that we are
-	# treating the ROI as a single line of text
-	config = ("-l eng --oem 1 --psm 8")
-	text = pytesseract.image_to_string(roi, config=config)
-	# add the bounding box coordinates and OCR'd text to the list
-	# of results
-	results.append(((startX, startY, endX, endY), text))
+    boxes = non_max_suppression(np.array(rects), probs=confidences)
 
-# sort the results bounding box coordinates from top to bottom
-results = sorted(results, key=lambda r:r[0][1])
+    # initialize the list of results
+    results = []
+    # loop over the bounding boxes
+    for (startX, startY, endX, endY) in boxes:
+    	# scale the bounding box coordinates based on the respective
+    	# ratios
+    	startX = int(startX * rW)
+    	startY = int(startY * rH)
+    	endX = int(endX * rW)
+    	endY = int(endY * rH)
+    	# in order to obtain a better OCR of the text we can potentially
+    	# apply a bit of padding surrounding the bounding box -- here we
+    	# are computing the deltas in both the x and y directions
+    	dX = int((endX - startX) * padding)
+    	dY = int((endY - startY) * padding)
+    	# apply padding to each side of the bounding box, respectively
+    	startX = max(0, startX - dX)
+    	startY = max(0, startY - dY)
+    	endX = min(origW, endX + (dX * 2))
+    	endY = min(origH, endY + (dY * 2))
+    	# extract the actual padded ROI
+    	roi = orig[startY:endY, startX:endX]
 
-book_text = []
-for word in results:
-  book_text.append(word[1])
-book_text = ' '.join(book_text)
-print(book_text)
+      # in order to apply Tesseract v4 to OCR text we must supply
+    	# (1) a language, (2) an OEM flag of 4, indicating that the we
+    	# wish to use the LSTM neural net model for OCR, and finally
+    	# (3) an OEM value, in this case, 7 which implies that we are
+    	# treating the ROI as a single line of text
+    	config = ("-l eng --oem 1 --psm 8")
+    	text = pytesseract.image_to_string(roi, config=config)
+    	# add the bounding box coordinates and OCR'd text to the list
+    	# of results
+    	results.append(((startX, startY, endX, endY), text))
+
+    # sort the results bounding box coordinates from top to bottom
+    results = sorted(results, key=lambda r:r[0][1])
+
+    book_text = []
+    for word in results:
+      book_text.append(word[1])
+    book_text = ' '.join(book_text)
+
+    return book_text
 
 
-# %% show results
-# loop over the results
+# %% show results, not incorporated yet
 for ((startX, startY, endX, endY), text) in results:
   # display the text OCR'd by Tesseract
   print("OCR TEXT")
@@ -245,3 +236,12 @@ for ((startX, startY, endX, endY), text) in results:
     cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
   # show the output image
   cv2_imshow(output)
+
+# %% example
+src = '/content/drive/My Drive/bkshlf/val/ideal.JPG'
+out_folder = '/content/drive/My Drive/bkshlf/output_images'
+
+# CROP BY PREDICTIONS
+output_file_names = cropper(src, out_folder)
+ex_image_path = output_file_names[3]
+print(image_reader(ex_image_path))
