@@ -31,7 +31,7 @@ orig = np.copy(image)
 c_orig = cv.cvtColor(orig, cv.COLOR_GRAY2BGR)
 image = cv.GaussianBlur(image, (5,5), 0)
 mean = np.mean(image)
-image = cv.Canny(image, mean/3, mean*4/3)
+image = cv.Canny(image, mean, mean*2)
 
 cv.imshow("Canny Output", image)
 cv.waitKey(0)
