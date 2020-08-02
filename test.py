@@ -26,6 +26,11 @@ from tqdm import tqdm
 from google.colab.patches import cv2_imshow
 
 from detectron2.config import get_cfg
+from detectron2.data import DatasetCatalog, MetadataCatalog
+from detectron2.utils.visualizer import Visualizer
+import random
+
+from prepare_data import get_spine_dicts
 
 
 # # Test the model

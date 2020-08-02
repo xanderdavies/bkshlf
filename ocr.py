@@ -1,18 +1,5 @@
 # OCR
 
-# %% installs
-# !sudo apt install tesseract-ocr
-# !sudo add-apt-repository ppa:alex-p/tesseract-ocr
-# !sudo apt-get update
-# !sudo apt install tesseract-ocr
-# !tesseract -v # MUST BE V4
-# !pip install pillow
-# !pip install pytesseract
-# !pip install imutils
-# !tesseract --help-l
-# !tesseract --help-oem
-# !tesseract --help-psm # 6 or 7? TRY CHANGING THIS
-
 # %% imports
 from imutils import rotate_bound
 from imutils.object_detection import non_max_suppression
@@ -21,10 +8,11 @@ import pytesseract
 from pytesseract import Output
 from matplotlib.image import imread
 import scipy.misc
-from detectron2.data.detection_utils import read_image
+from detectron2.data import detection_utils
+import detectron2
 import re
 import numpy as np
-import cv2
+from cv2 import open
 
 # %% settings
 min_confidence = .5
@@ -35,11 +23,16 @@ classes = ["book_spine", "inc_spine", "no_text", "book_cover", "inc_cover"]
 
 # %% cropper function - add buffer, fix straighten
 # https://github.com/facebookresearch/detectron2/issues/984 was helpful
-def cropper(org_image_path, out_file_dir):
+def cropper(org_image_path, out_file_dir, predictor):
     filename = (org_image_path.split("/")[-1]).split(".")[0]
     img = detection_utils.read_image(org_image_path, format="BGR")
     outputs = predictor(img)
     instances = outputs["instances"].to('cpu')
+
+    # ONE second
+    igg = cv2.open(org_image_path)
+    cv2.imshow("image", igg)
+    cv2.waitKey()
 
     # bounding boxes
     boxes = instances.pred_boxes
@@ -94,7 +87,7 @@ def cropper(org_image_path, out_file_dir):
 
     return output_file_names
 
-# %% decode_predictions function
+# %% decode_predictions function (helper for image_reader)
 def decode_predictions(scores, geometry):
 	# grab the number of rows and columns from the scores volume, then
 	# initialize our set of bounding box rectangles and corresponding
@@ -218,30 +211,50 @@ def image_reader(org_image_path):
 
     return book_text
 
-# %% example
-src = '/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/val/ideal.JPG'
-out_folder = '/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/output_images'
 
-# CROP BY PREDICTIONS
-output_file_names = cropper(src, out_folder)
-ex_image_path = output_file_names[3]
-print(image_reader(ex_image_path))
+# NONESSENTIAL (STILL USEFUL) BELOW
 
 
-# %% show results, not incorporated yet
-for ((startX, startY, endX, endY), text) in results:
-  # display the text OCR'd by Tesseract
-  print("OCR TEXT")
-  print("========")
-  print("{}\n".format(text))
-  # strip out non-ASCII text so we can draw the text on the image
-  # using OpenCV, then draw the text and a bounding box surrounding
-  # the text region of the input image
-  text = "".join([c if ord(c) < 128 else "" for c in text]).strip()
-  output = orig.copy()
-  cv2.rectangle(output, (startX, startY), (endX, endY),
-    (0, 0, 255), 2)
-  cv2.putText(output, text, (startX, startY - 20),
-    cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
-  # show the output image
-  cv2_imshow(output)
+# %% possible installs
+# !sudo apt install tesseract-ocr
+# !sudo add-apt-repository ppa:alex-p/tesseract-ocr
+# !sudo apt-get update
+# !sudo apt install tesseract-ocr
+# !tesseract -v # MUST BE V4
+# !pip install pillow
+# !pip install pytesseract
+# !pip install imutils
+# !tesseract --help-l
+# !tesseract --help-oem
+# !tesseract --help-psm # 6 or 7? TRY CHANGING THIS
+# !pip install opencv-contrib-python
+
+
+# # %% example
+# src = '/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/val/ideal.JPG'
+# out_folder = '/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/output_images'
+#
+# # CROP BY PREDICTIONS
+# # won't run because no predictor here
+# output_file_names = cropper(src, out_folder, predictor)
+# ex_image_path = output_file_names[3]
+# print(image_reader(ex_image_path))
+#
+#
+# # %% show results, not incorporated yet
+# for ((startX, startY, endX, endY), text) in results:
+#   # display the text OCR'd by Tesseract
+#   print("OCR TEXT")
+#   print("========")
+#   print("{}\n".format(text))
+#   # strip out non-ASCII text so we can draw the text on the image
+#   # using OpenCV, then draw the text and a bounding box surrounding
+#   # the text region of the input image
+#   text = "".join([c if ord(c) < 128 else "" for c in text]).strip()
+#   output = orig.copy()
+#   cv2.rectangle(output, (startX, startY), (endX, endY),
+#     (0, 0, 255), 2)
+#   cv2.putText(output, text, (startX, startY - 20),
+#     cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
+#   # show the output image
+#   cv2_imshow(output)
