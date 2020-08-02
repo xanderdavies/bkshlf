@@ -14,11 +14,11 @@ from detectron2.engine import DefaultPredictor
 
 # %% define model
 cfg = get_cfg()
-cfg.MODEL.WEIGHTS = path_to_weights # Dowloaded from /output in this collab
+cfg.MODEL.WEIGHTS = path_to_weights
 cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.4  # GUESS — custom testing threshold for this model
 cfg.MODEL.DEVICE = "cpu"
 cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
-predictor = DefaultPredictor(cfg)
+predictor = DefaultPredictor(cfg) # predictor currently NOT working!!?
 
 # %% run cropper
 output_file_names = cropper(path_to_image, path_to_out, predictor)
