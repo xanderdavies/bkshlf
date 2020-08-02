@@ -1,9 +1,38 @@
-# Need train + val data @ "/content/drive/My Drive/bkshlf/(train / val)"
+# BKSHLF end-to-end workflow
 
+# %% define paths + initialize book_list
+path_to_image = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/val/ideal.JPG"
+path_to_out = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/output_images"
+path_to_weights = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/saved_models/model_final.pth"
+book_list = []
 
-# Install detectron2
+# %% imports
+from ocr import cropper, image_reader
+from google_api import text_to_book
+from detectron2.config import get_cfg
+from detectron2.engine import DefaultPredictor
 
+# %% define model
+cfg = get_cfg()
+cfg.MODEL.WEIGHTS = path_to_weights # Dowloaded from /output in this collab
+cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.4  # GUESS — custom testing threshold for this model
+cfg.MODEL.DEVICE = "cpu"
+cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
+predictor = DefaultPredictor(cfg)
+
+# %% run cropper
+output_file_names = cropper(path_to_image, path_to_out, predictor)
+
+# %% run image_reader and text_to_book
+for file in output_file_names:
+    book_list.append(text_to_book(image_reader(file)))
+
+# %% output
+print(book_list)
+
+###############################
 # %% possible pip installs ((colab has CUDA 10.1 + torch 1.6)):
+# HELPFUL !conda install -c pytorch torchvision cudatoolkit pytorch
 # !sudo -H pip3 install --ignore-installed PyYAML
 # !pip install --user pyyaml==5.1 pycocotools>=2.0.1
 # !pip install opencv-python
@@ -11,14 +40,8 @@
 # !pip install torch==1.6.0
 # !pip install torchvision==0.7.0
 
-# %%
-from prepare_data import get_spine_dicts
-from detectron2.data import DatasetCatalog, MetadataCatalog
-from detectron2.utils.visualizer import Visualizer
-import random
-import cv2
+# %% OLD CODE BELOW
 
-cfg = get_cfg()
 
 # I don't think any of these cfg settings are needed for testing...
 # cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
@@ -36,7 +59,6 @@ cfg = get_cfg()
 
 # if loading:
 cfg.MODEL.WEIGHTS = '/content/drive/My Drive/bkshlf/saved_models/model_final.pth' # Dowloaded from /output in this collab
-
 cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.4  # GUESS — custom testing threshold for this model
 cfg.DATASETS.TEST = ("shelf_val", )
 

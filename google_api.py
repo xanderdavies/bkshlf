@@ -26,8 +26,8 @@ def text_to_book(book_text):
     id = top_result["id"]
     return Book(title, authors, id, description)
 
-# %% example
-sample_text = "Fodors aii GRAND CANYON 2016"
-my_book = text_to_book(sample_text)
-print(f"Book Title: {my_book.title}")
-print(f"Book Description: {my_book.description}")
+# # %% example
+# sample_text = "Fodors aii GRAND CANYON 2016"
+# my_book = text_to_book(sample_text)
+# print(f"Book Title: {my_book.title}")
+# print(f"Book Description: {my_book.description}")
