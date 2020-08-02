@@ -12,7 +12,7 @@ from detectron2.data import detection_utils
 import detectron2
 import re
 import numpy as np
-from cv2 import open
+import cv2
 
 # %% settings
 min_confidence = .5
@@ -28,11 +28,6 @@ def cropper(org_image_path, out_file_dir, predictor):
     img = detection_utils.read_image(org_image_path, format="BGR")
     outputs = predictor(img)
     instances = outputs["instances"].to('cpu')
-
-    # ONE second
-    igg = cv2.open(org_image_path)
-    cv2.imshow("image", igg)
-    cv2.waitKey()
 
     # bounding boxes
     boxes = instances.pred_boxes
