@@ -24,8 +24,22 @@ classes = ["book_spine", "inc_spine", "no_text", "book_cover", "inc_cover"]
 # %% cropper function - add buffer, fix straighten
 # https://github.com/facebookresearch/detectron2/issues/984 was helpful
 def cropper(org_image_path, out_file_dir, predictor):
+
+    def get_height(mask_array):
+        top_of_mask = mask.shape[0]
+        bottom_of_mask = 0
+        no_mask_yet = True
+        for row_number, row in enumerate(mask_array):
+            if max(row.flatten()) == 0:
+                if no_mask_yet:
+                    top_of_mask = mask.shape[0] - row_number
+            else:
+                no_mask_yet = False
+                bottom_of_mask = mask.shape[0] - row_number
+        return (top_of_mask - bottom_of_mask)
+
     filename = (org_image_path.split("/")[-1]).split(".")[0]
-    img = detection_utils.read_image(org_image_path, format="BGR")
+    img = cv2.imread(org_image_path)
     outputs = predictor(img)
     instances = outputs["instances"].to('cpu')
 
@@ -54,11 +68,10 @@ def cropper(org_image_path, out_file_dir, predictor):
         # improve this by calculating minimum distance between top and bottom points
         if labels[i] == "book_spine":
             mask_array_instance.append(mask_array[:, :, i:(i+1)])
-            output = np.where(mask_array_instance[i] == False, 0, img) # KEY LINE - if not mask array, then 255 (white), else copy from img
-            # im = rotate_bound(output, 270) # rotate 270
+            mask = np.array(mask_array_instance[i], dtype=bool)
+            output = np.where(mask == False, 0, img) # KEY LINE - if not mask array, then 255 (white), else copy from img
             im = Image.fromarray(output)
-            image = im.crop(boxes[i])
-            image = cropped_img.rotate(270)
+            image = np.array(im.crop(boxes[i]))
 
             # resize done here instead
             orig = image.copy()
@@ -71,13 +84,23 @@ def cropper(org_image_path, out_file_dir, predictor):
                 short_side = int(((long_side/origW)*origH//32 + 1)*32)
                 (newW, newH) = (long_side, short_side)
 
-            rW = origW / float(newW)
-            rH = origH / float(newH)
             # resize the image and grab the new image dimensions
             image = cv2.resize(image, (newW, newH))
 
+            # rotate
+            best_angle = [0, get_height(image)]
+            for i in range(180):
+                dst = rotate_bound(image, -i)
+                height = get_height(dst)
+                if height < best_angle[1]:
+                    best_angle = [i, height]
+                    best_image = dst
+
+            cv2.imshow("rotated_img", best_image)
+            cv2.waitKey()
             # save and update file names list
             output_file_names.append(f"{out_file_dir}/{filename}_{i}.jpg")
+            image = Image.fromarray(best_image)
             image.save(f"{out_file_dir}/{filename}_{i}.jpg")
 
     return output_file_names
@@ -158,7 +181,8 @@ def image_reader(org_image_path):
     (rects, confidences) = decode_predictions(scores, geometry)
     if rects == []:
       print("failed to locate text")
-    cv2_imshow(image)
+    cv2.imshow("image to be read", image)
+    cv2.waitKey()
 
     boxes = non_max_suppression(np.array(rects), probs=confidences)
 
@@ -168,10 +192,10 @@ def image_reader(org_image_path):
     for (startX, startY, endX, endY) in boxes:
     	# scale the bounding box coordinates based on the respective
     	# ratios
-    	startX = int(startX * rW)
-    	startY = int(startY * rH)
-    	endX = int(endX * rW)
-    	endY = int(endY * rH)
+    	startX = int(startX * W)
+    	startY = int(startY * H)
+    	endX = int(endX * W)
+    	endY = int(endY * H)
     	# in order to obtain a better OCR of the text we can potentially
     	# apply a bit of padding surrounding the bounding box -- here we
     	# are computing the deltas in both the x and y directions
@@ -253,3 +277,69 @@ def image_reader(org_image_path):
 #     cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
 #   # show the output image
 #   cv2_imshow(output)
+
+
+
+
+################
+#
+# def cropper(org_image_path, out_file_dir, pred):
+#     filename = (org_image_path.split("/")[-1]).split(".")[0]
+#     img = cv2.imread(org_image_path)# detection_utils.read_image(org_image_path, format="BGR")
+#     outputs = pred(img)
+#     instances = outputs["instances"].to('cpu')
+#
+#     # bounding boxes
+#     boxes = instances.pred_boxes
+#     if isinstance(boxes, detectron2.structures.boxes.Boxes):
+#         boxes = boxes.tensor.numpy()
+#     else:
+#         boxes = np.asarray(boxes)
+#
+#     # labels
+#     labels = [classes[i] for i in instances.pred_classes]
+#
+#     # masks
+#     mask_array = instances.pred_masks.numpy() # pred masks are now nd-numpy arrays
+#     num_instances = mask_array.shape[0] # number of books/created images
+#     mask_array = np.moveaxis(mask_array, 0, -1)
+#     mask_array_instance = [] # initialize instances list
+#
+#     # initialize zero image
+#     img = imread(str(org_image_path))
+#     output = np.zeros_like(img)
+#     output_file_names = [] # initialize file names list
+#
+#     for i in range(num_instances):
+#         # improve this by calculating minimum distance between top and bottom points
+#         if labels[i] == "book_spine":
+#             mask_array_instance.append(mask_array[:, :, i:(i+1)])
+#             output = np.where(mask_array_instance[i] == False, 0, img) # KEY LINE - if not mask array, then 255 (white), else copy from img
+#             # im = rotate_bound(output, 270) # rotate 270
+#             im = Image.fromarray(output)
+#             image = im.crop(boxes[i])
+#
+#             image = np.array(image)
+#             # resize done here instead
+#             orig = image.copy()
+#             (origH, origW) = image.shape[:2]
+#             # correctly scale based on long_side provided
+#             if origH > origW:
+#                 short_side = int(((long_side/origH)*origW//32 + 1)*32)
+#                 (newW, newH) = (short_side, long_side)
+#             else:
+#                 short_side = int(((long_side/origW)*origH//32 + 1)*32)
+#                 (newW, newH) = (long_side, short_side)
+#
+#             rW = origW / float(newW)
+#             rH = origH / float(newH)
+#             # resize the image and grab the new image dimensions
+#             image = cv2.resize(image, (newW, newH))
+#
+#
+#             # save and update file names list
+#             output_file_names.append(f"{out_file_dir}/{filename}_{i}.jpg")
+#             image = Image.fromarray(image)
+#             image.save(f"{out_file_dir}/{filename}_{i}.jpg")
+#
+#     return output_file_names
