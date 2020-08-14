@@ -1,12 +1,12 @@
 # BKSHLF end-to-end workflow
 
-user = 'M' # or X
 # %% define paths + initialize book_list
 from detectron2 import model_zoo
 from detectron2.engine import DefaultPredictor
 from detectron2.config import get_cfg
 from google_api import text_to_book
 from ocr import cropper, image_reader
+<<<<<<< HEAD
 
 if user == 'X':
     path_to_image = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/val/ideal.JPG"
@@ -18,6 +18,11 @@ elif user == 'M':
     path_to_out = "/Users/maxnadeau/Documents/ExtraProjects/bookshelf/bkshlf/shelves/output_images"
     path_to_weights = "/Users/maxnadeau/Documents/ExtraProjects/bookshelf/bkshlf/shelves/saved_models/model_final.pth"
 
+=======
+path_to_image = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/val/ideal.JPG"
+path_to_out = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/output_images"
+path_to_weights = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/saved_models/model_final.pth"
+>>>>>>> 38df47e30e62e8355b48c9f210c0d23cf534b0f8
 book_list = []
 
 # %% imports
@@ -27,7 +32,9 @@ cfg = get_cfg()
 cfg.merge_from_file(model_zoo.get_config_file(
     "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
 cfg.MODEL.WEIGHTS = path_to_weights
-cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.4 # guess
+
+# GUESS custom testing threshold for this model
+cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.4
 cfg.MODEL.DEVICE = "cpu"
 cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
 cfg.DATASETS.TEST = ()
