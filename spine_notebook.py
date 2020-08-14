@@ -13,10 +13,10 @@ if user == 'X':
     path_to_out = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/output_images"
     path_to_weights = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/saved_models/model_final.pth"
 
-if user == 'M':
-    path_to_image =
-    path_to_out =
-    path_to_weights =
+elif user == 'M':
+    path_to_image = "/Users/maxnadeau/Documents/ExtraProjects/bookshelf/bkshlf/shelves/val/ideal.JPG"
+    path_to_out = "/Users/maxnadeau/Documents/ExtraProjects/bookshelf/bkshlf/shelves/output_images"
+    path_to_weights = "/Users/maxnadeau/Documents/ExtraProjects/bookshelf/bkshlf/shelves/saved_models/model_final.pth"
 
 book_list = []
 
