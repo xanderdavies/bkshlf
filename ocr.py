@@ -15,10 +15,10 @@ import numpy as np
 import cv2
 
 # %% settings
-min_confidence = .5
-east_path = "./shelves/frozen_east_text_detection.pb"
-long_side = 672
+min_confidence = .5 # PLAY WITH
+long_side = 672 # PLAY WITH
 padding = 0.05  # PLAY WITH
+east_path = "./shelves/frozen_east_text_detection.pb"
 classes = ["book_spine", "inc_spine", "no_text", "book_cover", "inc_cover"]
 
 # %% cropper function - add buffer, fix straighten
@@ -105,7 +105,7 @@ def cropper(org_image_path, out_file_dir, predictor):
             # resize two
             newer_dims = get_new_dims(best_image)
             best_image = cv2.resize(best_image, newer_dims)
-            #
+
             # # IF WANT TO SHOW IMAGE
             # cv2.imshow("spine", best_image)
             # cv2.waitKey()
@@ -170,8 +170,6 @@ def decode_predictions(scores, geometry):
     return (rects, confidences)
 
 # %% read image function
-
-
 def image_reader(org_image_path):
     image = cv2.imread(org_image_path)
     (H, W) = image.shape[:2]
