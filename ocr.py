@@ -237,6 +237,25 @@ def image_reader(org_image_path):
     # sort the results bounding box coordinates from top to bottom
     results = sorted(results, key=lambda r:r[0][1])
 
+    # %% show results, comment out for final pipeline
+    for ((startX, startY, endX, endY), text) in results:
+      # display the text OCR'd by Tesseract
+      print("OCR TEXT")
+      print("========")
+      print("{}\n".format(text))
+      # strip out non-ASCII text so we can draw the text on the image
+      # using OpenCV, then draw the text and a bounding box surrounding
+      # the text region of the input image
+      text = "".join([c if ord(c) < 128 else "" for c in text]).strip()
+      output = orig.copy()
+      cv2.rectangle(output, (startX, startY), (endX, endY),
+        (0, 0, 255), 2)
+      cv2.putText(output, text, (startX, startY - 20),
+        cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
+      # show the output image
+      cv2.imshow("output", output)
+      cv2.waitKey()
+
     book_text = []
     for word in results:
         book_text.append(word[1])
@@ -290,8 +309,8 @@ def image_reader(org_image_path):
 #   cv2.putText(output, text, (startX, startY - 20),
 #     cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
 #   # show the output image
-#   cv2_imshow(output)
-
+#   cv2.imshow(output)
+#   cv2.waitKey()
 
 ################
 #
