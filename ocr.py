@@ -18,13 +18,16 @@ import cv2
 min_confidence = .5
 east_path = "./shelves/frozen_east_text_detection.pb"
 long_side = 672
-padding = 0.05 # PLAY WITH
+padding = 0.05  # PLAY WITH
 classes = ["book_spine", "inc_spine", "no_text", "book_cover", "inc_cover"]
 
 # %% cropper function - add buffer, fix straighten
 # https://github.com/facebookresearch/detectron2/issues/984 was helpful
+
+
 def cropper(org_image_path, out_file_dir, predictor):
 
+    # rotation helper
     def get_height(mask_array):
         top_of_mask = mask.shape[0]
         bottom_of_mask = 0
@@ -38,6 +41,19 @@ def cropper(org_image_path, out_file_dir, predictor):
                 bottom_of_mask = mask.shape[0] - row_number
         return (top_of_mask - bottom_of_mask)
 
+    # resizing helper — can be improved, right now run twice
+    def get_new_dims(opened_image):
+        (origH, origW) = opened_image.shape[:2]
+        # scale based on long_side provided
+        if origH > origW:
+            short_side = int(((long_side/origH)*origW//32 + 1)*32)
+            (newW, newH) = (short_side, long_side)
+        else:
+            short_side = int(((long_side/origW)*origH//32 + 1)*32)
+            (newW, newH) = (long_side, short_side)
+        return (newW, newH)
+
+    # open image, make spine predictions
     filename = (org_image_path.split("/")[-1]).split(".")[0]
     img = cv2.imread(org_image_path)
     outputs = predictor(img)
@@ -54,151 +70,149 @@ def cropper(org_image_path, out_file_dir, predictor):
     labels = [classes[i] for i in instances.pred_classes]
 
     # masks
-    mask_array = instances.pred_masks.numpy() # pred masks are now nd-numpy arrays
-    num_instances = mask_array.shape[0] # number of books/created images
+    mask_array = instances.pred_masks.numpy()  # pred masks are now nd-numpy arrays
+    num_instances = mask_array.shape[0]  # number of books/created images
     mask_array = np.moveaxis(mask_array, 0, -1)
-    mask_array_instance = [] # initialize instances list
+    mask_array_instance = []  # initialize instances list
 
     # initialize zero image
     img = imread(str(org_image_path))
     output = np.zeros_like(img)
-    output_file_names = [] # initialize file names list
+    output_file_names = []  # initialize file names list
 
     for i in range(num_instances):
-        # improve this by calculating minimum distance between top and bottom points
         if labels[i] == "book_spine":
             mask_array_instance.append(mask_array[:, :, i:(i+1)])
             mask = np.array(mask_array_instance[i], dtype=bool)
-            output = np.where(mask == False, 0, img) # KEY LINE - if not mask array, then 255 (white), else copy from img
+            # KEY LINE - if not mask array, then 255 (white), else copy from img
+            output = np.where(mask == False, 0, img)
             im = Image.fromarray(output)
             image = np.array(im.crop(boxes[i]))
 
-            # resize done here instead
-            orig = image.copy()
-            (origH, origW) = image.shape[:2]
-            # correctly scale based on long_side provided
-            if origH > origW:
-                short_side = int(((long_side/origH)*origW//32 + 1)*32)
-                (newW, newH) = (short_side, long_side)
-            else:
-                short_side = int(((long_side/origW)*origH//32 + 1)*32)
-                (newW, newH) = (long_side, short_side)
+            # resize one
+            new_dims = get_new_dims(image)
+            image = cv2.resize(image, new_dims)
 
-            # resize the image and grab the new image dimensions
-            image = cv2.resize(image, (newW, newH))
-
-            # rotate
+            # rotate — TO DO optimization by MAX
             best_angle = [0, get_height(image)]
-            for i in range(180):
-                dst = rotate_bound(image, -i)
+            for t in range(180):
+                dst = rotate_bound(image, -t)
                 height = get_height(dst)
                 if height < best_angle[1]:
-                    best_angle = [i, height]
+                    best_angle = [t, height]
                     best_image = dst
 
-            cv2.imshow("rotated_img", best_image)
-            cv2.waitKey()
+            # resize two
+            newer_dims = get_new_dims(best_image)
+            best_image = cv2.resize(best_image, newer_dims)
+            #
+            # # IF WANT TO SHOW IMAGE
+            # cv2.imshow("spine", best_image)
+            # cv2.waitKey()
+
             # save and update file names list
             output_file_names.append(f"{out_file_dir}/{filename}_{i}.jpg")
-            image = Image.fromarray(best_image)
+            image = cv2.cvtColor(best_image, cv2.COLOR_BGR2RGB)
+            image = Image.fromarray(image)
             image.save(f"{out_file_dir}/{filename}_{i}.jpg")
+            print(f"Image {i} done, rescaled to {newer_dims}")
 
     return output_file_names
 
 # %% decode_predictions function (helper for image_reader)
 def decode_predictions(scores, geometry):
-	# grab the number of rows and columns from the scores volume, then
-	# initialize our set of bounding box rectangles and corresponding
-	# confidence scores
-	(numRows, numCols) = scores.shape[2:4]
-	rects = []
-	confidences = []
-	# loop over the number of rows
-	for y in range(0, numRows):
-		# extract the scores (probabilities), followed by the
-		# geometrical data used to derive potential bounding box
-		# coordinates that surround text
-		scoresData = scores[0, 0, y]
-		xData0 = geometry[0, 0, y]
-		xData1 = geometry[0, 1, y]
-		xData2 = geometry[0, 2, y]
-		xData3 = geometry[0, 3, y]
-		anglesData = geometry[0, 4, y]
-		# loop over the number of columns
-		for x in range(0, numCols):
-			# if our score does not have sufficient probability,
-			# ignore it
-			if scoresData[x] < min_confidence:
-				continue
-			# compute the offset factor as our resulting feature
-			# maps will be 4x smaller than the input image
-			(offsetX, offsetY) = (x * 4.0, y * 4.0)
-			# extract the rotation angle for the prediction and
-			# then compute the sin and cosine
-			angle = anglesData[x]
-			cos = np.cos(angle)
-			sin = np.sin(angle)
-			# use the geometry volume to derive the width and height
-			# of the bounding box
-			h = xData0[x] + xData2[x]
-			w = xData1[x] + xData3[x]
-			# compute both the starting and ending (x, y)-coordinates
-			# for the text prediction bounding box
-			endX = int(offsetX + (cos * xData1[x]) + (sin * xData2[x]))
-			endY = int(offsetY - (sin * xData1[x]) + (cos * xData2[x]))
-			startX = int(endX - w)
-			startY = int(endY - h)
-			# add the bounding box coordinates and probability score
-			# to our respective lists
-			rects.append((startX, startY, endX, endY))
-			confidences.append(scoresData[x])
-	# return a tuple of the bounding boxes and associated confidences
-	return (rects, confidences)
+    # grab the number of rows and columns from the scores volume, then
+    # initialize our set of bounding box rectangles and corresponding
+    # confidence scores
+    (numRows, numCols) = scores.shape[2:4]
+    rects = []
+    confidences = []
+    # loop over the number of rows
+    for y in range(0, numRows):
+        # extract the scores (probabilities), followed by the
+        # geometrical data used to derive potential bounding box
+        # coordinates that surround text
+        scoresData = scores[0, 0, y]
+        xData0 = geometry[0, 0, y]
+        xData1 = geometry[0, 1, y]
+        xData2 = geometry[0, 2, y]
+        xData3 = geometry[0, 3, y]
+        anglesData = geometry[0, 4, y]
+        # loop over the number of columns
+        for x in range(0, numCols):
+            # if our score does not have sufficient probability,
+            # ignore it
+            if scoresData[x] < min_confidence:
+                continue
+            # compute the offset factor as our resulting feature
+            # maps will be 4x smaller than the input image
+            (offsetX, offsetY) = (x * 4.0, y * 4.0)
+            # extract the rotation angle for the prediction and
+            # then compute the sin and cosine
+            angle = anglesData[x]
+            cos = np.cos(angle)
+            sin = np.sin(angle)
+            # use the geometry volume to derive the width and height
+            # of the bounding box
+            h = xData0[x] + xData2[x]
+            w = xData1[x] + xData3[x]
+            # compute both the starting and ending (x, y)-coordinates
+            # for the text prediction bounding box
+            endX = int(offsetX + (cos * xData1[x]) + (sin * xData2[x]))
+            endY = int(offsetY - (sin * xData1[x]) + (cos * xData2[x]))
+            startX = int(endX - w)
+            startY = int(endY - h)
+            # add the bounding box coordinates and probability score
+            # to our respective lists
+            rects.append((startX, startY, endX, endY))
+            confidences.append(scoresData[x])
+    # return a tuple of the bounding boxes and associated confidences
+    return (rects, confidences)
 
 # %% read image function
+
+
 def image_reader(org_image_path):
     image = cv2.imread(org_image_path)
     (H, W) = image.shape[:2]
+    print(f"height: {H} width: {W}")
+    # cv2.imshow("image_to_be_read", image)
+    # cv2.waitKey()
 
     # define the two output layer names for the EAST detector model that
     # we are interested in -- the first is the output probabilities and the
     # second can be used to derive the bounding box coordinates of text
     layerNames = [
-    	"feature_fusion/Conv_7/Sigmoid",
-    	"feature_fusion/concat_3"]
+        "feature_fusion/Conv_7/Sigmoid",
+        "feature_fusion/concat_3"]
+
     # load the pre-trained EAST text detector
-    print("[INFO] loading EAST text detector...")
     net = cv2.dnn.readNet(east_path)
 
     # construct a blob from the image and then perform a forward pass of
     # the model to obtain the two output layer sets
     blob = cv2.dnn.blobFromImage(image, 1.0, (W, H),
-    	(123.68, 116.78, 103.94), swapRB=True, crop=False)
+                                 (123.68, 116.78, 103.94), swapRB=True, crop=False)
     net.setInput(blob)
-    (scores, geometry) = net.forward(layerNames)
-    # decode the predictions, then  apply non-maxima suppression to
+    (scores, geometry) = net.forward(layerNames) # ISSUE HERE
+
+    # decode the predictions, then apply non-maxima suppression to
     # suppress weak, overlapping bounding boxes
     (rects, confidences) = decode_predictions(scores, geometry)
     if rects == []:
-      print("failed to locate text")
-    cv2.imshow("image to be read", image)
-    cv2.waitKey()
+        print("failed to locate text")
+
+    orig = image.copy()
+    (origH, origW) = image.shape[:2]
 
     boxes = non_max_suppression(np.array(rects), probs=confidences)
 
     # initialize the list of results
     results = []
+
     # loop over the bounding boxes
     for (startX, startY, endX, endY) in boxes:
-    	# scale the bounding box coordinates based on the respective
-    	# ratios
-    	startX = int(startX * W)
-    	startY = int(startY * H)
-    	endX = int(endX * W)
-    	endY = int(endY * H)
-    	# in order to obtain a better OCR of the text we can potentially
-    	# apply a bit of padding surrounding the bounding box -- here we
-    	# are computing the deltas in both the x and y directions
+    	# add padding
     	dX = int((endX - startX) * padding)
     	dY = int((endY - startY) * padding)
     	# apply padding to each side of the bounding box, respectively
@@ -225,7 +239,7 @@ def image_reader(org_image_path):
 
     book_text = []
     for word in results:
-      book_text.append(word[1])
+        book_text.append(word[1])
     book_text = ' '.join(book_text)
 
     return book_text
@@ -277,8 +291,6 @@ def image_reader(org_image_path):
 #     cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
 #   # show the output image
 #   cv2_imshow(output)
-
-
 
 
 ################
