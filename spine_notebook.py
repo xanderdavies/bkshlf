@@ -1,12 +1,13 @@
 # BKSHLF end-to-end workflow
 
+user = 'M'
+
 # %% define paths + initialize book_list
 from detectron2 import model_zoo
 from detectron2.engine import DefaultPredictor
 from detectron2.config import get_cfg
 from google_api import text_to_book
 from ocr import cropper, image_reader
-<<<<<<< HEAD
 
 if user == 'X':
     path_to_image = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/val/ideal.JPG"
@@ -18,11 +19,6 @@ elif user == 'M':
     path_to_out = "/Users/maxnadeau/Documents/ExtraProjects/bookshelf/bkshlf/shelves/output_images"
     path_to_weights = "/Users/maxnadeau/Documents/ExtraProjects/bookshelf/bkshlf/shelves/saved_models/model_final.pth"
 
-=======
-path_to_image = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/val/ideal.JPG"
-path_to_out = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/output_images"
-path_to_weights = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/saved_models/model_final.pth"
->>>>>>> 38df47e30e62e8355b48c9f210c0d23cf534b0f8
 book_list = []
 
 # %% imports
