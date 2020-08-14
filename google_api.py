@@ -19,12 +19,16 @@ def text_to_book(book_text):
     str = '+'.join(book_text.split())
     resp = requests.get(f"https://www.googleapis.com/books/v1/volumes?q={str}&key={APIKEY}")
     j_resp = resp.json()
-    top_result = j_resp["items"][0]
-    title = top_result["volumeInfo"]["title"]
-    authors = top_result["volumeInfo"]["authors"]
-    description = top_result["volumeInfo"]["description"]
-    id = top_result["id"]
-    return Book(title, authors, id, description)
+    try:
+        top_result = j_resp["items"][0]
+        title = top_result["volumeInfo"]["title"]
+        authors = top_result["volumeInfo"]["authors"]
+        description = top_result["volumeInfo"]["description"]
+        id = top_result["id"]
+        return Book(title, authors, id, description)
+    except KeyError:
+        print(f"No book found matching {book_text}")
+
 
 # # %% example
 # sample_text = "Fodors aii GRAND CANYON 2016"
