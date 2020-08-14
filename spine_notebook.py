@@ -27,8 +27,7 @@ cfg.merge_from_file(model_zoo.get_config_file(
     "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
 cfg.MODEL.WEIGHTS = path_to_weights
 
-# GUESS custom testing threshold for this model
-cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.4
+cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.4 # guess
 cfg.MODEL.DEVICE = "cpu"
 cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
 cfg.DATASETS.TEST = ()
