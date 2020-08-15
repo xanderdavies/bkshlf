@@ -1,13 +1,16 @@
 # BKSHLF end-to-end workflow
 
-user = 'M'
+from ocr import cropper, image_reader, image_reader_2
+from google_api import text_to_book
+from detectron2.config import get_cfg
+from detectron2.engine import DefaultPredictor
+from detectron2 import model_zoo
+user = 'X'
 
 # %% define paths + initialize book_list
-from detectron2 import model_zoo
-from detectron2.engine import DefaultPredictor
-from detectron2.config import get_cfg
-from google_api import text_to_book
-from ocr import cropper, image_reader
+
+image_reader_2("/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/output_images/ideal_2.jpg")
+raise KeyError("DONE")
 
 if user == 'X':
     path_to_image = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/val/ideal.JPG"
@@ -26,7 +29,7 @@ cfg = get_cfg()
 cfg.merge_from_file(model_zoo.get_config_file(
     "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
 cfg.MODEL.WEIGHTS = path_to_weights
-cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.4 # guess
+cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.4  # guess
 cfg.MODEL.DEVICE = "cpu"
 cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
 cfg.DATASETS.TEST = ()
@@ -37,7 +40,7 @@ output_file_names = cropper(path_to_image, path_to_out, predictor)
 
 # %% run image_reader and text_to_book
 for file in output_file_names:
-    book = text_to_book(image_reader(file))
+    book = text_to_book(image_reader_2(file))
     book_list.append(book.title if (book != None) else book)
 
 # %% output

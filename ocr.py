@@ -8,6 +8,7 @@ import pytesseract
 from pytesseract import Output
 from matplotlib.image import imread
 import scipy.misc
+from scipy.ndimage.morphology import binary_dilation
 from detectron2.data import detection_utils
 import detectron2
 import re
@@ -16,15 +17,13 @@ import cv2
 
 # %% settings
 min_confidence = .5 # PLAY WITH
-long_side = 672 # PLAY WITH
-padding = 0.05  # PLAY WITH
+long_side = 800     # PLAY WITH
+padding = 0.06      # PLAY WITH
 east_path = "./shelves/frozen_east_text_detection.pb"
 classes = ["book_spine", "inc_spine", "no_text", "book_cover", "inc_cover"]
 
 # %% cropper function - add buffer, fix straighten
 # https://github.com/facebookresearch/detectron2/issues/984 was helpful
-
-
 def cropper(org_image_path, out_file_dir, predictor):
 
     # rotation helper
@@ -84,8 +83,10 @@ def cropper(org_image_path, out_file_dir, predictor):
         if labels[i] == "book_spine":
             mask_array_instance.append(mask_array[:, :, i:(i+1)])
             mask = np.array(mask_array_instance[i], dtype=bool)
+            dilated_mask = binary_dilation(mask, iterations=10)
+
             # KEY LINE - if not mask array, then 255 (white), else copy from img
-            output = np.where(mask == False, 0, img)
+            output = np.where(dilated_mask == False, 0, img)
             im = Image.fromarray(output)
             image = np.array(im.crop(boxes[i]))
 
@@ -170,6 +171,29 @@ def decode_predictions(scores, geometry):
     return (rects, confidences)
 
 # %% read image function
+import matplotlib.pyplot as plt
+import keras_ocr
+
+def image_reader_2(org_image_path):
+    # pip install keras-ocr
+
+    # keras-ocr will automatically download pretrained
+    # weights for the detector and recognizer.
+    pipeline = keras_ocr.pipeline.Pipeline()
+
+    # Get a set of three example images
+    images = keras_ocr.tools.read(org_image_path)
+
+    # Each list of predictions in prediction_groups is a list of
+    # (word, box) tuples.
+    prediction_groups = pipeline.recognize([images])
+
+    # Plot the predictions
+    fig, axs = plt.subplots(nrows=len(images), figsize=(20, 20))
+    for ax, image, predictions in zip(axs, images, prediction_groups):
+        keras_ocr.tools.drawAnnotations(image=image, predictions=predictions, ax=None)
+    plt.show()
+
 def image_reader(org_image_path):
     image = cv2.imread(org_image_path)
     (H, W) = image.shape[:2]
@@ -192,7 +216,7 @@ def image_reader(org_image_path):
     blob = cv2.dnn.blobFromImage(image, 1.0, (W, H),
                                  (123.68, 116.78, 103.94), swapRB=True, crop=False)
     net.setInput(blob)
-    (scores, geometry) = net.forward(layerNames) # ISSUE HERE
+    (scores, geometry) = net.forward(layerNames)  # ISSUE HERE
 
     # decode the predictions, then apply non-maxima suppression to
     # suppress weak, overlapping bounding boxes
@@ -210,49 +234,55 @@ def image_reader(org_image_path):
 
     # loop over the bounding boxes
     for (startX, startY, endX, endY) in boxes:
-    	# add padding
-    	dX = int((endX - startX) * padding)
-    	dY = int((endY - startY) * padding)
-    	# apply padding to each side of the bounding box, respectively
-    	startX = max(0, startX - dX)
-    	startY = max(0, startY - dY)
-    	endX = min(origW, endX + (dX * 2))
-    	endY = min(origH, endY + (dY * 2))
-    	# extract the actual padded ROI
-    	roi = orig[startY:endY, startX:endX]
+        # add padding
+        dX = int((endX - startX) * padding)
+        dY = int((endY - startY) * padding)
+        # apply padding to each side of the bounding box, respectively
+        startX = max(0, startX - dX)
+        startY = max(0, startY - dY)
+        endX = min(origW, endX + (dX * 2))
+        endY = min(origH, endY + (dY * 2))
+        # extract the actual padded ROI
+        roi = orig[startY:endY, startX:endX]
 
-      # in order to apply Tesseract v4 to OCR text we must supply
-    	# (1) a language, (2) an OEM flag of 4, indicating that the we
-    	# wish to use the LSTM neural net model for OCR, and finally
-    	# (3) an OEM value, in this case, 7 which implies that we are
-    	# treating the ROI as a single line of text
-    	config = ("-l eng --oem 1 --psm 8")
-    	text = pytesseract.image_to_string(roi, config=config)
-    	# add the bounding box coordinates and OCR'd text to the list
-    	# of results
-    	results.append(((startX, startY, endX, endY), text))
+        if dY > dX:
+            roi = rotate_bound(roi, 90)
+
+        cv2.imshow("roi", roi)
+        cv2.waitKey()
+
+        # in order to apply Tesseract v4 to OCR text we must supply
+        # (1) a language, (2) an OEM flag of 4, indicating that the we
+        # wish to use the LSTM neural net model for OCR, and finally
+        # (3) an PSM value, in this case, 7 which implies that we are
+        # treating the ROI as a single line of text
+        config = ("-l eng --oem 1 --psm 6")
+        text = pytesseract.image_to_string(roi, config=config)
+        # add the bounding box coordinates and OCR'd text to the list
+        # of results
+        results.append(((startX, startY, endX, endY), text))
 
     # sort the results bounding box coordinates from top to bottom
-    results = sorted(results, key=lambda r:r[0][1])
+    results = sorted(results, key=lambda r: r[0][1])
 
     # %% show results, comment out for final pipeline
     for ((startX, startY, endX, endY), text) in results:
-      # display the text OCR'd by Tesseract
-      print("OCR TEXT")
-      print("========")
-      print("{}\n".format(text))
-      # strip out non-ASCII text so we can draw the text on the image
-      # using OpenCV, then draw the text and a bounding box surrounding
-      # the text region of the input image
-      text = "".join([c if ord(c) < 128 else "" for c in text]).strip()
-      output = orig.copy()
-      cv2.rectangle(output, (startX, startY), (endX, endY),
-        (0, 0, 255), 2)
-      cv2.putText(output, text, (startX, startY - 20),
-        cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
-      # show the output image
-      cv2.imshow("output", output)
-      cv2.waitKey()
+        # display the text OCR'd by Tesseract
+        print("OCR TEXT")
+        print("========")
+        print("{}\n".format(text))
+        # strip out non-ASCII text so we can draw the text on the image
+        # using OpenCV, then draw the text and a bounding box surrounding
+        # the text region of the input image
+        text = "".join([c if ord(c) < 128 else "" for c in text]).strip()
+        output = orig.copy()
+        cv2.rectangle(output, (startX, startY), (endX, endY),
+                      (0, 0, 255), 2)
+        cv2.putText(output, text, (startX, startY - 20),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
+        # show the output image
+        cv2.imshow("output", output)
+        cv2.waitKey()
 
     book_text = []
     for word in results:
