@@ -120,6 +120,41 @@ def cropper(org_image_path, out_file_dir, predictor):
 
     return output_file_names
 
+
+# %% read image function
+import matplotlib.pyplot as plt
+import keras_ocr
+import re
+
+def image_reader_2(image_path):
+    # !pip install keras-ocr
+
+    # keras-ocr will automatically download pretrained
+    # weights for the detector and recognizer.
+    pipeline = keras_ocr.pipeline.Pipeline()
+
+    # Get a set of three example images
+    image = keras_ocr.tools.read(image_path)
+
+    # Each list of predictions in prediction_groups is a list of
+    # (word, box) tuples.
+    predictions = pipeline.recognize([image])[0]
+
+    # Get text
+    text = []
+    for prediction in predictions:
+        word = prediction[0]
+        if re.search("..", word) != None:
+            text.append(word)
+
+    text = ' '.join(text)
+    print(text)
+    # Plot the predictions
+    keras_ocr.tools.drawAnnotations(image=image, predictions=predictions, ax=None)
+    plt.show()
+
+    return text
+
 # %% decode_predictions function (helper for image_reader)
 def decode_predictions(scores, geometry):
     # grab the number of rows and columns from the scores volume, then
@@ -169,30 +204,6 @@ def decode_predictions(scores, geometry):
             confidences.append(scoresData[x])
     # return a tuple of the bounding boxes and associated confidences
     return (rects, confidences)
-
-# %% read image function
-import matplotlib.pyplot as plt
-import keras_ocr
-
-def image_reader_2(org_image_path):
-    # pip install keras-ocr
-
-    # keras-ocr will automatically download pretrained
-    # weights for the detector and recognizer.
-    pipeline = keras_ocr.pipeline.Pipeline()
-
-    # Get a set of three example images
-    images = keras_ocr.tools.read(org_image_path)
-
-    # Each list of predictions in prediction_groups is a list of
-    # (word, box) tuples.
-    prediction_groups = pipeline.recognize([images])
-
-    # Plot the predictions
-    fig, axs = plt.subplots(nrows=len(images), figsize=(20, 20))
-    for ax, image, predictions in zip(axs, images, prediction_groups):
-        keras_ocr.tools.drawAnnotations(image=image, predictions=predictions, ax=None)
-    plt.show()
 
 def image_reader(org_image_path):
     image = cv2.imread(org_image_path)

@@ -8,12 +8,8 @@ from detectron2 import model_zoo
 user = 'X'
 
 # %% define paths + initialize book_list
-
-image_reader_2("/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/output_images/ideal_2.jpg")
-raise KeyError("DONE")
-
 if user == 'X':
-    path_to_image = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/val/ideal.JPG"
+    path_to_image = "/Users/xanderdavies/Desktop/bkshlf/shelf/old_stuffs/xan1.jpg"
     path_to_out = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/output_images"
     path_to_weights = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/saved_models/model_final.pth"
 
