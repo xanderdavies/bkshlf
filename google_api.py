@@ -37,7 +37,7 @@ def text_to_book(book_text_pair):
             authors = top_result["volumeInfo"]["authors"]
             description = top_result["volumeInfo"]["description"]
             id = top_result["id"]
-            if check_title(text, title):
+            if check_title(book_text, title):
                 book.append(Book(title, authors, id, description))
             break
         except KeyError:
