@@ -146,7 +146,7 @@ def image_reader(image_path):
     for i, predictions in enumerate(prediction_groups):
         for prediction in predictions:
             word = prediction[0]
-            if word == "used" or "bestseller":
+            if word == "used" or word == "bestseller":
                 print("used/bestseller detected, deleting")
                 continue
             tl, tr, br, bl = prediction[1]
