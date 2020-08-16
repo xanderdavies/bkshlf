@@ -2,7 +2,6 @@
 
 # %% imports
 from imutils import rotate_bound
-# from imutils.object_detection import non_max_suppression
 from PIL import Image
 
 from matplotlib.image import imread
@@ -179,6 +178,7 @@ def image_reader(image_path):
 # import pytesseract
 # from pytesseract import Output
 # import scipy.misc
+# from imutils.object_detection import non_max_suppression
 
 # # %% decode_predictions function (helper for image_reader)
 # def decode_predictions(scores, geometry):
