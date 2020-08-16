@@ -19,8 +19,8 @@ def check_title(text, proposed_title):
     for word in words:
         if word in proposed_title:
             print("proposed title rejected")
-            return True
-        return False
+            return False
+        return True
 
 
 # %% text_to_book function
