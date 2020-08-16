@@ -2,7 +2,8 @@
 
 # %% imports
 from imutils import rotate_bound
-from PIL import Image
+from imutils.object_detection import non_max_suppression
+from PIL import Image, ImageDraw
 from matplotlib.image import imread
 from scipy.ndimage.morphology import binary_dilation
 from detectron2.data import detection_utils
