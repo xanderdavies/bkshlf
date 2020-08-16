@@ -14,8 +14,13 @@ class Book:
         self.description = description
 
 # %% helper for text_to_book, rejects title if no book_text words
-# def check_title(text, proposed_title):
-#
+    def check_title(text, proposed_title):
+        words = text.split()
+        for word in words:
+            if word in proposed_title:
+                print("proposed title rejected")
+                return True
+            return False
 
 
 # %% text_to_book function
@@ -32,7 +37,8 @@ def text_to_book(book_text_pair):
             authors = top_result["volumeInfo"]["authors"]
             description = top_result["volumeInfo"]["description"]
             id = top_result["id"]
-            book.append(Book(title, authors, id, description))
+            if check_title(text, title):
+                book.append(Book(title, authors, id, description))
             break
         except KeyError:
             print(f"No book found matching {book_text}")
