@@ -5,7 +5,7 @@ from google_api import text_to_book
 from detectron2.config import get_cfg
 from detectron2.engine import DefaultPredictor
 from detectron2 import model_zoo
-user = 'X'
+user = 'M'
 
 # %% define paths + initialize book_list
 if user == 'X':
@@ -14,9 +14,9 @@ if user == 'X':
     path_to_weights = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/saved_models/model_final.pth"
 
 elif user == 'M':
-    path_to_image = "/Users/maxnadeau/Documents/ExtraProjects/bookshelf/bkshlf/shelves/val/ideal.JPG"
-    path_to_out = "/Users/maxnadeau/Documents/ExtraProjects/bookshelf/bkshlf/shelves/output_images"
-    path_to_weights = "/Users/maxnadeau/Documents/ExtraProjects/bookshelf/bkshlf/shelves/saved_models/model_final.pth"
+    path_to_image = "/Users/maxnadeau/Documents/ExtraProjects/bookshelf/new_bs/shelves/val/ideal.JPG"
+    path_to_out = "/Users/maxnadeau/Documents/ExtraProjects/bookshelf/new_bs/shelves/output_images"
+    path_to_weights = "/Users/maxnadeau/Documents/ExtraProjects/bookshelf/new_bs/shelves/saved_models/model_final.pth"
 
 book_list = []
 
@@ -32,7 +32,8 @@ cfg.DATASETS.TEST = ()
 predictor = DefaultPredictor(cfg)
 
 # %% run cropper
-output_file_names = cropper(path_to_image, path_to_out, predictor)
+#output_file_names = cropper(path_to_image, path_to_out, predictor)
+output_file_names = ["ideal_0", "ideal_1", "ideal_2"]
 
 # %% run image_reader and text_to_book
 for file in output_file_names:
