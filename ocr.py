@@ -4,8 +4,6 @@
 from imutils import rotate_bound
 from imutils.object_detection import non_max_suppression
 from PIL import Image, ImageDraw
-import pytesseract
-from pytesseract import Output
 from matplotlib.image import imread
 import scipy.misc
 from scipy.ndimage.morphology import binary_dilation
