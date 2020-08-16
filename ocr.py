@@ -17,7 +17,7 @@ import cv2
 
 # %% settings
 min_confidence = .5 # PLAY WITH
-long_side = 800     # PLAY WITH
+long_side = 896     # PLAY WITH
 padding = 0.06      # PLAY WITH
 east_path = "./shelves/frozen_east_text_detection.pb"
 classes = ["book_spine", "inc_spine", "no_text", "book_cover", "inc_cover"]
@@ -126,184 +126,204 @@ import matplotlib.pyplot as plt
 import keras_ocr
 import re
 
-def image_reader_2(image_path):
+def image_reader(image_path):
     # !pip install keras-ocr
 
     # keras-ocr will automatically download pretrained
     # weights for the detector and recognizer.
     pipeline = keras_ocr.pipeline.Pipeline()
 
-    # Get a set of three example images
-    image = keras_ocr.tools.read(image_path)
+    # read image
+    ig = cv2.imread(image_path)
+    images = [ig, rotate_bound(ig, 90), rotate_bound(ig, 180),
+              rotate_bound(ig, 270)]
 
     # Each list of predictions in prediction_groups is a list of
     # (word, box) tuples.
-    predictions = pipeline.recognize([image])[0]
+    prediction_groups = pipeline.recognize(images)
 
     # Get text
     text = []
-    for prediction in predictions:
-        word = prediction[0]
-        if re.search("..", word) != None:
-            text.append(word)
+    text_2 = []
+
+    for i, predictions in enumerate(prediction_groups):
+        for prediction in predictions:
+            word = prediction[0]
+            if word == "used" or "bestseller":
+                print("used/bestseller detected, deleting")
+                continue
+            tl, tr, br, bl = prediction[1]
+            width = -tl[0] + br[0]
+            height = -tl[1] + br[1]
+            if width > height and height > long_side/50:
+                if re.search("..", word) != None: # delete if single letter
+                    if i <= 1:
+                        text.append(word)
+                    else:
+                        text_2.append(word)
 
     text = ' '.join(text)
-    print(text)
+    text_2 = ' '.join(text_2)
+
+    print(f"text: {text}, text_2: {text_2}")
+
     # Plot the predictions
-    keras_ocr.tools.drawAnnotations(image=image, predictions=predictions, ax=None)
-    plt.show()
+    for predictions, image in zip(prediction_groups, images):
+        keras_ocr.tools.drawAnnotations(image=image, predictions=predictions, ax=None)
+        plt.show()
 
-    return text
+    return (text, text_2)
 
-# %% decode_predictions function (helper for image_reader)
-def decode_predictions(scores, geometry):
-    # grab the number of rows and columns from the scores volume, then
-    # initialize our set of bounding box rectangles and corresponding
-    # confidence scores
-    (numRows, numCols) = scores.shape[2:4]
-    rects = []
-    confidences = []
-    # loop over the number of rows
-    for y in range(0, numRows):
-        # extract the scores (probabilities), followed by the
-        # geometrical data used to derive potential bounding box
-        # coordinates that surround text
-        scoresData = scores[0, 0, y]
-        xData0 = geometry[0, 0, y]
-        xData1 = geometry[0, 1, y]
-        xData2 = geometry[0, 2, y]
-        xData3 = geometry[0, 3, y]
-        anglesData = geometry[0, 4, y]
-        # loop over the number of columns
-        for x in range(0, numCols):
-            # if our score does not have sufficient probability,
-            # ignore it
-            if scoresData[x] < min_confidence:
-                continue
-            # compute the offset factor as our resulting feature
-            # maps will be 4x smaller than the input image
-            (offsetX, offsetY) = (x * 4.0, y * 4.0)
-            # extract the rotation angle for the prediction and
-            # then compute the sin and cosine
-            angle = anglesData[x]
-            cos = np.cos(angle)
-            sin = np.sin(angle)
-            # use the geometry volume to derive the width and height
-            # of the bounding box
-            h = xData0[x] + xData2[x]
-            w = xData1[x] + xData3[x]
-            # compute both the starting and ending (x, y)-coordinates
-            # for the text prediction bounding box
-            endX = int(offsetX + (cos * xData1[x]) + (sin * xData2[x]))
-            endY = int(offsetY - (sin * xData1[x]) + (cos * xData2[x]))
-            startX = int(endX - w)
-            startY = int(endY - h)
-            # add the bounding box coordinates and probability score
-            # to our respective lists
-            rects.append((startX, startY, endX, endY))
-            confidences.append(scoresData[x])
-    # return a tuple of the bounding boxes and associated confidences
-    return (rects, confidences)
-
-def image_reader(org_image_path):
-    image = cv2.imread(org_image_path)
-    (H, W) = image.shape[:2]
-    print(f"height: {H} width: {W}")
-    # cv2.imshow("image_to_be_read", image)
-    # cv2.waitKey()
-
-    # define the two output layer names for the EAST detector model that
-    # we are interested in -- the first is the output probabilities and the
-    # second can be used to derive the bounding box coordinates of text
-    layerNames = [
-        "feature_fusion/Conv_7/Sigmoid",
-        "feature_fusion/concat_3"]
-
-    # load the pre-trained EAST text detector
-    net = cv2.dnn.readNet(east_path)
-
-    # construct a blob from the image and then perform a forward pass of
-    # the model to obtain the two output layer sets
-    blob = cv2.dnn.blobFromImage(image, 1.0, (W, H),
-                                 (123.68, 116.78, 103.94), swapRB=True, crop=False)
-    net.setInput(blob)
-    (scores, geometry) = net.forward(layerNames)  # ISSUE HERE
-
-    # decode the predictions, then apply non-maxima suppression to
-    # suppress weak, overlapping bounding boxes
-    (rects, confidences) = decode_predictions(scores, geometry)
-    if rects == []:
-        print("failed to locate text")
-
-    orig = image.copy()
-    (origH, origW) = image.shape[:2]
-
-    boxes = non_max_suppression(np.array(rects), probs=confidences)
-
-    # initialize the list of results
-    results = []
-
-    # loop over the bounding boxes
-    for (startX, startY, endX, endY) in boxes:
-        # add padding
-        dX = int((endX - startX) * padding)
-        dY = int((endY - startY) * padding)
-        # apply padding to each side of the bounding box, respectively
-        startX = max(0, startX - dX)
-        startY = max(0, startY - dY)
-        endX = min(origW, endX + (dX * 2))
-        endY = min(origH, endY + (dY * 2))
-        # extract the actual padded ROI
-        roi = orig[startY:endY, startX:endX]
-
-        if dY > dX:
-            roi = rotate_bound(roi, 90)
-
-        cv2.imshow("roi", roi)
-        cv2.waitKey()
-
-        # in order to apply Tesseract v4 to OCR text we must supply
-        # (1) a language, (2) an OEM flag of 4, indicating that the we
-        # wish to use the LSTM neural net model for OCR, and finally
-        # (3) an PSM value, in this case, 7 which implies that we are
-        # treating the ROI as a single line of text
-        config = ("-l eng --oem 1 --psm 6")
-        text = pytesseract.image_to_string(roi, config=config)
-        # add the bounding box coordinates and OCR'd text to the list
-        # of results
-        results.append(((startX, startY, endX, endY), text))
-
-    # sort the results bounding box coordinates from top to bottom
-    results = sorted(results, key=lambda r: r[0][1])
-
-    # %% show results, comment out for final pipeline
-    for ((startX, startY, endX, endY), text) in results:
-        # display the text OCR'd by Tesseract
-        print("OCR TEXT")
-        print("========")
-        print("{}\n".format(text))
-        # strip out non-ASCII text so we can draw the text on the image
-        # using OpenCV, then draw the text and a bounding box surrounding
-        # the text region of the input image
-        text = "".join([c if ord(c) < 128 else "" for c in text]).strip()
-        output = orig.copy()
-        cv2.rectangle(output, (startX, startY), (endX, endY),
-                      (0, 0, 255), 2)
-        cv2.putText(output, text, (startX, startY - 20),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
-        # show the output image
-        cv2.imshow("output", output)
-        cv2.waitKey()
-
-    book_text = []
-    for word in results:
-        book_text.append(word[1])
-    book_text = ' '.join(book_text)
-
-    return book_text
 
 
 # NONESSENTIAL (STILL USEFUL) BELOW
+
+# # %% decode_predictions function (helper for image_reader)
+# def decode_predictions(scores, geometry):
+#     # grab the number of rows and columns from the scores volume, then
+#     # initialize our set of bounding box rectangles and corresponding
+#     # confidence scores
+#     (numRows, numCols) = scores.shape[2:4]
+#     rects = []
+#     confidences = []
+#     # loop over the number of rows
+#     for y in range(0, numRows):
+#         # extract the scores (probabilities), followed by the
+#         # geometrical data used to derive potential bounding box
+#         # coordinates that surround text
+#         scoresData = scores[0, 0, y]
+#         xData0 = geometry[0, 0, y]
+#         xData1 = geometry[0, 1, y]
+#         xData2 = geometry[0, 2, y]
+#         xData3 = geometry[0, 3, y]
+#         anglesData = geometry[0, 4, y]
+#         # loop over the number of columns
+#         for x in range(0, numCols):
+#             # if our score does not have sufficient probability,
+#             # ignore it
+#             if scoresData[x] < min_confidence:
+#                 continue
+#             # compute the offset factor as our resulting feature
+#             # maps will be 4x smaller than the input image
+#             (offsetX, offsetY) = (x * 4.0, y * 4.0)
+#             # extract the rotation angle for the prediction and
+#             # then compute the sin and cosine
+#             angle = anglesData[x]
+#             cos = np.cos(angle)
+#             sin = np.sin(angle)
+#             # use the geometry volume to derive the width and height
+#             # of the bounding box
+#             h = xData0[x] + xData2[x]
+#             w = xData1[x] + xData3[x]
+#             # compute both the starting and ending (x, y)-coordinates
+#             # for the text prediction bounding box
+#             endX = int(offsetX + (cos * xData1[x]) + (sin * xData2[x]))
+#             endY = int(offsetY - (sin * xData1[x]) + (cos * xData2[x]))
+#             startX = int(endX - w)
+#             startY = int(endY - h)
+#             # add the bounding box coordinates and probability score
+#             # to our respective lists
+#             rects.append((startX, startY, endX, endY))
+#             confidences.append(scoresData[x])
+#     # return a tuple of the bounding boxes and associated confidences
+#     return (rects, confidences)
+#
+# def image_reader(org_image_path):
+#     image = cv2.imread(org_image_path)
+#     (H, W) = image.shape[:2]
+#     print(f"height: {H} width: {W}")
+#     # cv2.imshow("image_to_be_read", image)
+#     # cv2.waitKey()
+#
+#     # define the two output layer names for the EAST detector model that
+#     # we are interested in -- the first is the output probabilities and the
+#     # second can be used to derive the bounding box coordinates of text
+#     layerNames = [
+#         "feature_fusion/Conv_7/Sigmoid",
+#         "feature_fusion/concat_3"]
+#
+#     # load the pre-trained EAST text detector
+#     net = cv2.dnn.readNet(east_path)
+#
+#     # construct a blob from the image and then perform a forward pass of
+#     # the model to obtain the two output layer sets
+#     blob = cv2.dnn.blobFromImage(image, 1.0, (W, H),
+#                                  (123.68, 116.78, 103.94), swapRB=True, crop=False)
+#     net.setInput(blob)
+#     (scores, geometry) = net.forward(layerNames)  # ISSUE HERE
+#
+#     # decode the predictions, then apply non-maxima suppression to
+#     # suppress weak, overlapping bounding boxes
+#     (rects, confidences) = decode_predictions(scores, geometry)
+#     if rects == []:
+#         print("failed to locate text")
+#
+#     orig = image.copy()
+#     (origH, origW) = image.shape[:2]
+#
+#     boxes = non_max_suppression(np.array(rects), probs=confidences)
+#
+#     # initialize the list of results
+#     results = []
+#
+#     # loop over the bounding boxes
+#     for (startX, startY, endX, endY) in boxes:
+#         # add padding
+#         dX = int((endX - startX) * padding)
+#         dY = int((endY - startY) * padding)
+#         # apply padding to each side of the bounding box, respectively
+#         startX = max(0, startX - dX)
+#         startY = max(0, startY - dY)
+#         endX = min(origW, endX + (dX * 2))
+#         endY = min(origH, endY + (dY * 2))
+#         # extract the actual padded ROI
+#         roi = orig[startY:endY, startX:endX]
+#
+#         if dY > dX:
+#             roi = rotate_bound(roi, 90)
+#
+#         cv2.imshow("roi", roi)
+#         cv2.waitKey()
+#
+#         # in order to apply Tesseract v4 to OCR text we must supply
+#         # (1) a language, (2) an OEM flag of 4, indicating that the we
+#         # wish to use the LSTM neural net model for OCR, and finally
+#         # (3) an PSM value, in this case, 7 which implies that we are
+#         # treating the ROI as a single line of text
+#         config = ("-l eng --oem 1 --psm 6")
+#         text = pytesseract.image_to_string(roi, config=config)
+#         # add the bounding box coordinates and OCR'd text to the list
+#         # of results
+#         results.append(((startX, startY, endX, endY), text))
+#
+#     # sort the results bounding box coordinates from top to bottom
+#     results = sorted(results, key=lambda r: r[0][1])
+#
+#     # %% show results, comment out for final pipeline
+#     for ((startX, startY, endX, endY), text) in results:
+#         # display the text OCR'd by Tesseract
+#         print("OCR TEXT")
+#         print("========")
+#         print("{}\n".format(text))
+#         # strip out non-ASCII text so we can draw the text on the image
+#         # using OpenCV, then draw the text and a bounding box surrounding
+#         # the text region of the input image
+#         text = "".join([c if ord(c) < 128 else "" for c in text]).strip()
+#         output = orig.copy()
+#         cv2.rectangle(output, (startX, startY), (endX, endY),
+#                       (0, 0, 255), 2)
+#         cv2.putText(output, text, (startX, startY - 20),
+#                     cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
+#         # show the output image
+#         cv2.imshow("output", output)
+#         cv2.waitKey()
+#
+#     book_text = []
+#     for word in results:
+#         book_text.append(word[1])
+#     book_text = ' '.join(book_text)
+#
+#     return book_text
 
 
 # %% possible installs

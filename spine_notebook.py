@@ -1,6 +1,6 @@
 # BKSHLF end-to-end workflow
 
-from ocr import cropper, image_reader, image_reader_2
+from ocr import cropper, image_reader
 from google_api import text_to_book
 from detectron2.config import get_cfg
 from detectron2.engine import DefaultPredictor
@@ -9,7 +9,7 @@ user = 'X'
 
 # %% define paths + initialize book_list
 if user == 'X':
-    path_to_image = "/Users/xanderdavies/Desktop/bkshlf/shelf/old_stuffs/xan1.jpg"
+    path_to_image = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/val/carson/carson_3.jpeg"
     path_to_out = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/output_images"
     path_to_weights = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/saved_models/model_final.pth"
 
@@ -36,8 +36,11 @@ output_file_names = cropper(path_to_image, path_to_out, predictor)
 
 # %% run image_reader and text_to_book
 for file in output_file_names:
-    book = text_to_book(image_reader_2(file))
-    book_list.append(book.title if (book != None) else book)
+    book = text_to_book(image_reader(file))
+    if book == []:
+        book_list.append(book)
+    else:
+        book_list.append((book[0].title, book[0].authors))
 
 # %% output
 print(book_list)
