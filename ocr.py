@@ -3,7 +3,6 @@
 # %% imports
 from imutils import rotate_bound
 from PIL import Image
-
 from matplotlib.image import imread
 from scipy.ndimage.morphology import binary_dilation
 from detectron2.data import detection_utils
