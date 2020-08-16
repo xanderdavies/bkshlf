@@ -2,12 +2,10 @@
 
 # %% imports
 from imutils import rotate_bound
-from imutils.object_detection import non_max_suppression
-from PIL import Image, ImageDraw
-import pytesseract
-from pytesseract import Output
+# from imutils.object_detection import non_max_suppression
+from PIL import Image
+
 from matplotlib.image import imread
-import scipy.misc
 from scipy.ndimage.morphology import binary_dilation
 from detectron2.data import detection_utils
 import detectron2
@@ -177,6 +175,10 @@ def image_reader(image_path):
 
 
 # NONESSENTIAL (STILL USEFUL) BELOW
+
+# import pytesseract
+# from pytesseract import Output
+# import scipy.misc
 
 # # %% decode_predictions function (helper for image_reader)
 # def decode_predictions(scores, geometry):
