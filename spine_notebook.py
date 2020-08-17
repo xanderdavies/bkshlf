@@ -1,5 +1,15 @@
 # BKSHLF end-to-end workflow
 
+# FOR MAX, CURRENT TODO/ISSUES:
+# 1. Try goodreads first before moving on to google API
+# 2. Handle autobrightness
+# 3. Make sure at least one word detected is in authors name (ideally)
+# 4. Books where title is spelled out one letter at a time :/
+# 5. Has to be horizontal image rn?
+# 6. Maybe look at top 5 results, and compare them.
+# 7. Teach the ocr new fonts?
+
+
 from ocr import cropper, image_reader
 from google_api import text_to_book
 from detectron2.config import get_cfg
@@ -9,7 +19,7 @@ user = 'X'
 
 # %% define paths + initialize book_list
 if user == 'X':
-    path_to_image = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/val/d_0.jpeg"
+    path_to_image = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/val/carson/carson_6.jpeg"
     path_to_out = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/output_images"
     path_to_weights = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/saved_models/model_final.pth"
 
@@ -37,17 +47,14 @@ output_file_names = cropper(path_to_image, path_to_out, predictor)
 # %% run image_reader and text_to_book
 for i, file in enumerate(output_file_names):
     book = text_to_book(image_reader(file))
-    if book == None:
-        book_list.append(book)
-    else:
-        book_list.append((book.title, book.authors))
+    book_list.append(book)
 
 # %% output
-for i, book in enumerate(book):
+for i, book in enumerate(book_list):
     if book == None:
-        print(f"{i}. NA")
+        print(f"{i+1}. NA")
     else:
-        print(f"{i}. {book.title} by {book.authors[0]}")
+        print(f"{i+1}. {book.title} by {book.authors[0]}")
 
 ###############################
 # %% possible pip installs ((colab has CUDA 10.1 + torch 1.6)):
