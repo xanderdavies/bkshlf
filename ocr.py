@@ -50,10 +50,12 @@ def cropper(org_image_path, out_file_dir, predictor):
         return (newW, newH)
 
     # open image, make spine predictions
+    print("cropper starting... ")
     filename = (org_image_path.split("/")[-1]).split(".")[0]
     img = cv2.imread(org_image_path)
     outputs = predictor(img)
     instances = outputs["instances"].to('cpu')
+    print("prediction done...")
 
     # bounding boxes
     boxes = instances.pred_boxes
@@ -78,31 +80,41 @@ def cropper(org_image_path, out_file_dir, predictor):
 
     for i in range(num_instances):
         if labels[i] == "book_spine":
+            print("book_spine loop starting... ")
             mask_array_instance.append(mask_array[:, :, i:(i+1)])
             mask = np.array(mask_array_instance[i], dtype=bool)
             dilated_mask = binary_dilation(mask, iterations=10)
-
+            print("binary_dilation done... ")
             # KEY LINE - if not mask array, then 255 (white), else copy from img
             output = np.where(dilated_mask == False, 0, img)
+            print("output formated... ")
             im = Image.fromarray(output)
             image = np.array(im.crop(boxes[i]))
 
             # resize one
             new_dims = get_new_dims(image)
             image = cv2.resize(image, new_dims)
+            print("resize done...")
 
-            # rotate — TO DO optimization by MAX
-            best_angle = [0, get_height(image)]
+            # rotate — TO DO gradient descent by MAX
+            image_small = cv2.resize(image, (int(new_dims[0]/4), int(new_dims[1]/4)))
+            print("image_small created...")
+            best_angle = [0, get_height(image_small)]
+
             for t in range(180):
-                dst = rotate_bound(image, -t)
+                dst = rotate_bound(image_small, -t)
                 height = get_height(dst)
                 if height < best_angle[1]:
                     best_angle = [t, height]
-                    best_image = dst
+                    # best_image = dst
+            print(best_angle)
+            best_image = rotate_bound(image, -best_angle[0])
+            print("rotate done...")
 
             # resize two
             newer_dims = get_new_dims(best_image)
             best_image = cv2.resize(best_image, newer_dims)
+            print("resize two done...")
 
             # # IF WANT TO SHOW IMAGE
             # cv2.imshow("spine", best_image)
@@ -132,6 +144,9 @@ def image_reader(image_path):
 
     # read image
     ig = cv2.imread(image_path)
+
+    # TO DO detect if too dark/bright, and auto-fix
+
     images = [ig, rotate_bound(ig, 90), rotate_bound(ig, 180),
               rotate_bound(ig, 270)]
 
@@ -164,10 +179,10 @@ def image_reader(image_path):
 
     print(f"text: {text}, text_2: {text_2}")
 
-    # Plot the predictions
-    for predictions, image in zip(prediction_groups, images):
-        keras_ocr.tools.drawAnnotations(image=image, predictions=predictions, ax=None)
-        plt.show()
+    # # Plot the predictions
+    # for predictions, image in zip(prediction_groups, images):
+    #     keras_ocr.tools.drawAnnotations(image=image, predictions=predictions, ax=None)
+    #     plt.show()
 
     return (text, text_2)
 

@@ -9,7 +9,7 @@ user = 'X'
 
 # %% define paths + initialize book_list
 if user == 'X':
-    path_to_image = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/val/ideal.jpg"
+    path_to_image = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/val/d_0.jpeg"
     path_to_out = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/output_images"
     path_to_weights = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/saved_models/model_final.pth"
 
@@ -35,15 +35,19 @@ predictor = DefaultPredictor(cfg)
 output_file_names = cropper(path_to_image, path_to_out, predictor)
 
 # %% run image_reader and text_to_book
-for file in output_file_names:
+for i, file in enumerate(output_file_names):
     book = text_to_book(image_reader(file))
-    if book == []:
+    if book == None:
         book_list.append(book)
     else:
-        book_list.append((book[0].title, book[0].authors))
+        book_list.append((book.title, book.authors))
 
 # %% output
-print(book_list)
+for i, book in enumerate(book):
+    if book == None:
+        print(f"{i}. NA")
+    else:
+        print(f"{i}. {book.title} by {book.authors[0]}")
 
 ###############################
 # %% possible pip installs ((colab has CUDA 10.1 + torch 1.6)):
