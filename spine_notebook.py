@@ -1,13 +1,13 @@
 # BKSHLF end-to-end workflow
 
 # FOR MAX, CURRENT TODO/ISSUES:
-# 1. Try goodreads first before moving on to google API
+# 1. Try goodreads DONE
 # 2. Handle autobrightness
-# 3. Make sure at least one word detected is in authors name (ideally)
+# 3. Make sure at least one word detected is in author or publisher name DONE
 # 4. Books where title is spelled out one letter at a time :/
 # 5. Has to be horizontal image rn?
-# 6. Maybe look at top 5 results, and compare them.
-# 7. Teach the ocr new fonts?
+# 6. Teach the ocr new fonts?
+# 7. Don't always do all four reads... do the first two and see if necessary
 
 
 from ocr import cropper, image_reader
@@ -19,7 +19,7 @@ user = 'X'
 
 # %% define paths + initialize book_list
 if user == 'X':
-    path_to_image = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/val/carson/carson_6.jpeg"
+    path_to_image = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/val/ideal.jpg"
     path_to_out = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/output_images"
     path_to_weights = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/saved_models/model_final.pth"
 

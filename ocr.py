@@ -1,8 +1,5 @@
 # OCR
 
-# NOTES: teach keras-ocr new fonts?
-# weirdly has to be a horizontal image?
-
 # %% imports
 from imutils import rotate_bound
 from imutils.object_detection import non_max_suppression
