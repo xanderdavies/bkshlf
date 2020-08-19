@@ -19,7 +19,7 @@ user = 'X'
 
 # %% define paths + initialize book_list
 if user == 'X':
-    path_to_image = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/val/living_1.jpg"
+    path_to_image = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/val/carson/carson_3.jpeg"
     path_to_out = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/output_images"
     path_to_weights = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/saved_models/model_final.pth"
 
@@ -46,8 +46,10 @@ output_file_names = cropper(path_to_image, path_to_out, predictor)
 
 # %% run image_reader and text_to_book
 for i, file in enumerate(output_file_names):
-    book = text_to_book(image_reader(file))
-    book_list.append(book)
+    read_image = image_reader(file)
+    if read_image != ("", ""):
+        book = text_to_book(read_image)
+        book_list.append(book)
 
 # %% output
 for i, book in enumerate(book_list):

@@ -68,6 +68,8 @@ def choose_books(read_text, book_list):
                 return True
         return False
 
+    decent_book = None
+
     if book_list == []:
         return (None, None)
 
@@ -75,17 +77,20 @@ def choose_books(read_text, book_list):
         words_in_author = 0
         words_in_booktext = 0
         words_in_publisher = 0
+        author_words = []
         # for each word read...
         for word in read_text.split():
-            in_author = False
+            if word == "the" or word == "an":
+                continue
             # check if in author
             for author in book.authors:
                 if word_in_string(word, author):
                     words_in_author += 1
                     words_in_booktext += 1
                     in_author = True
+                    author_words.append((word, author))
                     break
-            if not in_author:
+            if author_words == []:
                 if word_in_string(word, book.title):
                     words_in_booktext += 1
                 elif word_in_string(word, book.publisher):
@@ -93,26 +98,28 @@ def choose_books(read_text, book_list):
         if words_in_booktext >= 2:
             if words_in_author >= 1 or words_in_publisher >= 1:
                 try:
-                    print(f"{book.title} by {book.authors[0]} accepted")
+                    print(f"{book.title} by {book.authors[0]} accepted with {author_words} in author")
                 except IndexError:
-                    print(f"{book.title} by {book.authors} accepted")
+                    print(f"{book.title} by {book.authors} accepted with {author_words} in author")
                 return (book, None)
             else:
-                try:
-                    print(f"{book.title} by {book.authors[0]} is a decent option")
-                except IndexError:
-                    print(f"{book.title} by {book.authors} is a decent option")
-                return (None, book)
+                if decent_book == None:
+                    decent_book = book
+                    try:
+                        print(f"{book.title} by {book.authors[0]} is a decent option")
+                    except IndexError:
+                        print(f"{book.title} by {book.authors} is a decent option")
         else:
             try:
                 print(f"{book.title} by {book.authors[0]} rejected")
             except IndexError:
                 print(f"{book.title} by {book.authors} rejected")
-            return (None, None)
+
+    return (None, decent_book)
 
 def resp_to_book_google(json_resp):
     book_list = []
-    for i in range(10):
+    for i in range(5):
         try:
             result = json_resp["items"][i]
             title = result["volumeInfo"]["title"]
@@ -130,7 +137,7 @@ def resp_to_book_google(json_resp):
 
 def resp_to_book_isbn(json_resp):
     book_list = []
-    for i in range(10):
+    for i in range(5):
         try:
             result = json_resp["data"][i]
             title = result["title"]
@@ -158,7 +165,7 @@ def text_to_book(book_text_pair):
             print("isbn got it...")
             return great_option # done by isbn
         else:
-            if second_choice != None:
+            if second_choice == None:
                 second_choice = decent_option
             str = '+'.join(book_text.split())
             resp = requests.get(f"https://www.googleapis.com/books/v1/volumes?q={str}&key={google_APIKEY}")
