@@ -11,7 +11,7 @@
 
 
 from ocr import cropper, image_reader
-from google_api import text_to_book
+from isbn_api import text_to_book
 from detectron2.config import get_cfg
 from detectron2.engine import DefaultPredictor
 from detectron2 import model_zoo
@@ -19,7 +19,7 @@ user = 'X'
 
 # %% define paths + initialize book_list
 if user == 'X':
-    path_to_image = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/val/ideal.jpg"
+    path_to_image = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/val/living_1.jpg"
     path_to_out = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/output_images"
     path_to_weights = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/saved_models/model_final.pth"
 
@@ -54,8 +54,10 @@ for i, book in enumerate(book_list):
     if book == None:
         print(f"{i+1}. NA")
     else:
-        print(f"{i+1}. {book.title} by {book.authors[0]}")
-
+        try:
+            print(f"{i+1}. {book.title} by {book.authors[0]}")
+        except IndexError:
+            print(f"{i+1}. {book.title} by {book.authors}")
 ###############################
 # %% possible pip installs ((colab has CUDA 10.1 + torch 1.6)):
 # HELPFUL !conda install -c pytorch torchvision cudatoolkit pytorch
