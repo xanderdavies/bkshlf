@@ -22,7 +22,7 @@ def isEditDistanceOne(s1, s2):
         return False
     count, i, j = (0, 0, 0)
     while i < m and j < n:
-        if s1[i] != s2[j]: # If current characters dont match
+        if s1[i] != s2[j]: # If current characters don't match
             if count == 1:
                 return False
             if m > n: # If length of one string is more, then remove
@@ -87,7 +87,7 @@ def choose_books(read_text, book_list):
                     in_author = True
                     author_words.append((word, author))
                     break
-            if author_words == []:
+            if not word in author_words:
                 if word_in_string(word, book.title):
                     words_in_booktext += 1
                 elif word_in_string(word, book.publisher):
