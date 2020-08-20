@@ -1,7 +1,17 @@
 # BKSHLF end-to-end workflow
 
+# FOR MAX, CURRENT TODO/ISSUES:
+# 1. Try goodreads DONE
+# 2. Handle autobrightness
+# 3. Make sure at least one word detected is in author or publisher name DONE
+# 4. Books where title is spelled out one letter at a time :/
+# 5. Has to be horizontal image rn?
+# 6. Teach the ocr new fonts?
+# 7. Don't always do all four reads... do the first two and see if necessary
+
+
 from ocr import cropper, image_reader
-from google_api import text_to_book
+from isbn_api import text_to_book
 from detectron2.config import get_cfg
 from detectron2.engine import DefaultPredictor
 from detectron2 import model_zoo
@@ -9,7 +19,7 @@ user = 'M'
 
 # %% define paths + initialize book_list
 if user == 'X':
-    path_to_image = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/val/ideal.jpg"
+    path_to_image = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/val/carson/carson_3.jpeg"
     path_to_out = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/output_images"
     path_to_weights = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/saved_models/model_final.pth"
 
@@ -37,16 +47,21 @@ print(text_to_book(image_reader(path_to_out + "/ideal_0.jpg"))[0].title)
 #output_file_names = ["ideal_0", "ideal_1", "ideal_2"]
 
 # %% run image_reader and text_to_book
-for file in output_file_names:
-    book = text_to_book(image_reader(file))
-    if book == []:
+for i, file in enumerate(output_file_names):
+    read_image = image_reader(file)
+    if read_image != ("", ""):
+        book = text_to_book(read_image)
         book_list.append(book)
-    else:
-        book_list.append((book[0].title, book[0].authors))
 
 # %% output
-print(book_list)
-
+for i, book in enumerate(book_list):
+    if book == None:
+        print(f"{i+1}. NA")
+    else:
+        try:
+            print(f"{i+1}. {book.title} by {book.authors[0]}")
+        except IndexError:
+            print(f"{i+1}. {book.title} by {book.authors}")
 ###############################
 # %% possible pip installs ((colab has CUDA 10.1 + torch 1.6)):
 # HELPFUL !conda install -c pytorch torchvision cudatoolkit pytorch

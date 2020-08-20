@@ -11,6 +11,7 @@ import detectron2
 import re
 import numpy as np
 import cv2
+import tensorflow as tf
 
 # %% settings
 min_confidence = .5 # PLAY WITH
@@ -54,6 +55,7 @@ def cropper(org_image_path, out_file_dir, predictor):
     img = cv2.imread(org_image_path)
     outputs = predictor(img)
     instances = outputs["instances"].to('cpu')
+    print("prediction done...")
 
     # bounding boxes
     boxes = instances.pred_boxes
@@ -81,7 +83,6 @@ def cropper(org_image_path, out_file_dir, predictor):
             mask_array_instance.append(mask_array[:, :, i:(i+1)])
             mask = np.array(mask_array_instance[i], dtype=bool)
             dilated_mask = binary_dilation(mask, iterations=10)
-
             # KEY LINE - if not mask array, then 255 (white), else copy from img
             output = np.where(dilated_mask == False, 0, img)
             im = Image.fromarray(output)
@@ -91,14 +92,17 @@ def cropper(org_image_path, out_file_dir, predictor):
             new_dims = get_new_dims(image)
             image = cv2.resize(image, new_dims)
 
-            # rotate — TO DO optimization by MAX
-            best_angle = [0, get_height(image)]
+            # rotate — TO DO gradient descent by MAX
+            image_small = cv2.resize(image, (int(new_dims[0]/4), int(new_dims[1]/4)))
+            best_angle = [0, get_height(image_small)]
+
             for t in range(180):
-                dst = rotate_bound(image, -t)
+                dst = rotate_bound(image_small, -t)
                 height = get_height(dst)
                 if height < best_angle[1]:
                     best_angle = [t, height]
-                    best_image = dst
+                    # best_image = dst
+            best_image = rotate_bound(image, -best_angle[0])
 
             # resize two
             newer_dims = get_new_dims(best_image)
@@ -113,7 +117,7 @@ def cropper(org_image_path, out_file_dir, predictor):
             image = cv2.cvtColor(best_image, cv2.COLOR_BGR2RGB)
             image = Image.fromarray(image)
             image.save(f"{out_file_dir}/{filename}_{i}.jpg")
-            print(f"Image {i} done, rescaled to {newer_dims}")
+            print(f"Spine {i} done, rescaled to {newer_dims}")
 
     return output_file_names
 
@@ -123,15 +127,17 @@ import matplotlib.pyplot as plt
 import keras_ocr
 import re
 
+# keras-ocr will automatically download pretrained
+# weights for the detector and recognizer.
+pipeline = keras_ocr.pipeline.Pipeline()
+
 def image_reader(image_path):
     # !pip install keras-ocr
 
-    # keras-ocr will automatically download pretrained
-    # weights for the detector and recognizer.
-    pipeline = keras_ocr.pipeline.Pipeline()
-
     # read image
     ig = cv2.imread(image_path)
+
+    # TO DO detect if too dark/bright, and auto-fix
     images = [ig, rotate_bound(ig, 90), rotate_bound(ig, 180),
               rotate_bound(ig, 270)]
 
@@ -162,12 +168,13 @@ def image_reader(image_path):
     text = ' '.join(text)
     text_2 = ' '.join(text_2)
 
-    print(f"text: {text}, text_2: {text_2}")
+    print(f"text: {text}")
+    print(f"alt_text: {text_2}")
 
-    # Plot the predictions
-    for predictions, image in zip(prediction_groups, images):
-        keras_ocr.tools.drawAnnotations(image=image, predictions=predictions, ax=None)
-        plt.show()
+    # # Plot the predictions
+    # for predictions, image in zip(prediction_groups, images):
+    #     keras_ocr.tools.drawAnnotations(image=image, predictions=predictions, ax=None)
+    #     plt.show()
 
     return (text, text_2)
 
