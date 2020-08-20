@@ -19,7 +19,7 @@ user = 'M'
 
 # %% define paths + initialize book_list
 if user == 'X':
-    path_to_image = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/val/carson/carson_3.jpeg"
+    path_to_image = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/val/ideal.jpg"
     path_to_out = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/output_images"
     path_to_weights = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/saved_models/model_final.pth"
 
