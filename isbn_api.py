@@ -76,7 +76,6 @@ def book_decider(read_text, book_list):
             if not in_string_ish("summary", read_text):
                 print(f"{book.title} rejected with 'summary' in title.")
                 continue
-            print("I should not be printing")
         if "study" in title_word_list and "guide" in title_word_list:
             if not in_string_ish("study", read_text) or not in_string_ish("guide", read_text):
                 print(f"{book.title} rejected with 'study guide' in title.")
@@ -156,7 +155,7 @@ def book_decider(read_text, book_list):
 def text_to_book(book_text_pair):
     second_choice = None
     for book_text in book_text_pair:
-        if len(book_text) < 2:
+        if len(book_text.split()) < 2:
             print("read_text length less than 2... rejecting")
             return None
         books = text_to_book_list_isbn(book_text)
