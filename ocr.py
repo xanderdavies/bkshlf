@@ -1,7 +1,7 @@
 # OCR
 
 # %% imports
-from imutils import rotate_bound
+from imutils import rotate_bound, rotate
 from imutils.object_detection import non_max_suppression
 from PIL import Image, ImageDraw
 from matplotlib.image import imread
@@ -96,7 +96,6 @@ def cropper(org_image_path, out_file_dir, predictor):
     mask_array = instances.pred_masks.numpy()  # pred masks are now nd-numpy arrays
     num_instances = mask_array.shape[0]  # number of books/created images
     mask_array = np.moveaxis(mask_array, 0, -1)
-    mask_array_instance = []  # initialize instances list
 
     # initialize zero image
     img = imread(str(org_image_path))
@@ -105,9 +104,9 @@ def cropper(org_image_path, out_file_dir, predictor):
 
     for i in range(num_instances):
         if labels[i] == "book_spine":
-            mask_array_instance.append(mask_array[:, :, i:(i+1)])
-            mask = np.array(mask_array_instance[i], dtype=bool)
+            mask = np.array(mask_array[:, :, i:(i+1)], dtype=bool)
             dilated_mask = binary_dilation(mask, iterations=10)
+
             # KEY LINE - if not mask array, then 255 (white), else copy from img
             output = np.where(dilated_mask == False, 0, img)
             im = Image.fromarray(output)
@@ -119,13 +118,13 @@ def cropper(org_image_path, out_file_dir, predictor):
 
             # rotate — TO DO gradient descent by MAX
             image_small = cv2.resize(image, (int(new_dims[0]/4), int(new_dims[1]/4)))
-            best_angle = [0, get_height(image_small)]
+            best_angle = (0, get_height(image_small))
 
             for t in range(180):
                 dst = rotate_bound(image_small, -t)
                 height = get_height(dst)
                 if height < best_angle[1]:
-                    best_angle = [t, height]
+                    best_angle = (t, height)
                     # best_image = dst
             best_image = rotate_bound(image, -best_angle[0])
 
@@ -180,7 +179,7 @@ def image_reader(image_path):
             if word == "used" or word == "bestseller":
                 print("used/bestseller detected, deleting")
                 continue
-            tl, tr, br, bl = prediction[1]
+            tl, _, br, _ = prediction[1]
             width = -tl[0] + br[0]
             height = -tl[1] + br[1]
             if width > height and height > long_side/50:
