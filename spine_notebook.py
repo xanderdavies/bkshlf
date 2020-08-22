@@ -60,6 +60,7 @@ for i, book in enumerate(book_list):
             print(f"{i+1}. {book.title} by {book.authors[0]}")
         except IndexError:
             print(f"{i+1}. {book.title} by {book.authors}")
+
 ###############################
 # %% possible pip installs ((colab has CUDA 10.1 + torch 1.6)):
 # HELPFUL !conda install -c pytorch torchvision cudatoolkit pytorch
