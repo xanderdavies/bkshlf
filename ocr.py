@@ -145,16 +145,16 @@ def cropper(org_image_path, out_file_dir, predictor):
             image = cv2.resize(image, new_dims)
 
             toc3 = time.perf_counter()
-            print(f"Pre-rotation in {toc3 - tic3:0.4f} seconds")
+            # print(f"Pre-rotation in {toc3 - tic3:0.4f} seconds")
 
             # rotate — TO DO gradient descent by MAX
             tic2 = time.perf_counter()
-            small_img = cv2.resize(np.array(image), (int(new_dims[0]/4), int(new_dims[1]/4)))
-            best_angle = [0, new_get_height(small_img)]
+            small_img = cv2.resize(np.array(image), (int(new_dims[0]/5), int(new_dims[1]/5)))
+            best_angle = [0, get_height(small_img)]
 
             for t in range(0,180,2):
                 dst = rotate_bound(small_img, -t)
-                height = new_get_height(dst)
+                height = get_height(dst)
                 if height < best_angle[1]:
                     best_angle = [t, height]
                     # best_image = dst
@@ -163,25 +163,26 @@ def cropper(org_image_path, out_file_dir, predictor):
             best_angle = option_angles[option_heights.index(min(option_heights))]
             best_image = rotate_bound(image, -best_angle)
             toc2 = time.perf_counter()
-            print(f"Rotated in {toc2 - tic2:0.4f} seconds")
+            # print(f"Rotated in {toc2 - tic2:0.4f} seconds")
 
             # resize two
             newer_dims = get_new_dims(best_image)
             best_image = cv2.resize(best_image, newer_dims)
 
-            toc = time.perf_counter()
-
-            # IF WANT TO SHOW IMAGE
-            cv2.imshow("spine", best_image)
-            cv2.waitKey()
+            # # IF WANT TO SHOW IMAGE
+            # cv2.imshow("spine", best_image)
+            # cv2.waitKey()
 
             # save and update file names list
             output_file_names.append(f"{out_file_dir}/{filename}_{i}.jpg")
             image = cv2.cvtColor(best_image, cv2.COLOR_BGR2RGB)
             image = Image.fromarray(image)
             image.save(f"{out_file_dir}/{filename}_{i}.jpg")
+
+            toc = time.perf_counter()
             print(f"Done in {toc - tic:0.4f} seconds")
             print(f"Spine {i} done, rescaled to {newer_dims}")
+
     return output_file_names
 
 
