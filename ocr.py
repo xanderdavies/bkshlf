@@ -1,7 +1,7 @@
 # OCR
 
 # %% imports
-from imutils import rotate_bound, rotate
+from imutils import rotate_bound
 from imutils.object_detection import non_max_suppression
 from PIL import Image, ImageDraw
 from matplotlib.image import imread
@@ -12,6 +12,7 @@ import re
 import numpy as np
 import cv2
 import tensorflow as tf
+import math
 
 # %% settings
 min_confidence = .5 # PLAY WITH
@@ -33,21 +34,35 @@ def cropper(org_image_path, out_file_dir, predictor):
             bottom_of_mask -= 1
         return (bottom_of_mask - top_of_mask)
 
-    def new_rotate_idea(mask_array):
-        top_of_mask = 0
-        bottom_of_mask = mask.shape[0]
-        left_side_of_mask = 0
-        right_side_of_mask = mask.shape[1]
-        while max(mask_array[top_of_mask].flatten()) == 0:
-            top_of_mask += 1
-        while max(mask_array[bottom_of_mask].flatten()) == 0:
-            bottom_of_mask -= 1
-        while max(mask_array[:,left_side_of_mask].flatten()) == 0:
-            left_side_of_mask += 1
-        while max(mask_array[:,right_side_of_mask].flatten()) == 0:
-            right_side_of_mask -= 1
 
-        return (bottom_of_mask - top_of_mask)
+    def new_rotate_idea(mask_array):
+        #assumes 0,0 in top left corner. may not be the case?
+        top_y = 0
+        bot_y = mask.shape[0]
+        left_x = 0
+        right_x = mask.shape[1]
+        while max(mask_array[top_y.flatten()) == 0:
+            top_y += 1
+        top_corner = (np.mean(np.where(mask_array[:, top_y] > 0)), top_y)
+        while max(mask_array[bot_y].flatten()) == 0:
+            bot_y -= 1
+        bot_corner = (np.mean(np.where(mask_array[:, bot_y] > 0)), bot_y)
+        while max(mask_array[:, left_x.flatten()) == 0:
+            left_x += 1
+        left_corner = (left_x, np.mean(np.where(mask_array[left_x, :] > 0)))
+        while max(mask_array[:, right_x.flatten()) == 0:
+            right_x -= 1
+        right_corner = (right_x, np.mean(np.where(mask_array[right_x, :] > 0)))
+
+        higher_corner = right_corner
+        lower_corner = left_corner
+        if right_corner[1] < left_corner[1]:
+            higher_corner = left_corner
+            lower_corner = right_corner
+
+        mid_1 = ((top_corner[0] + higher_corner[0]) / 2, (top_corner[1] + higher_corner[1]) / 2)
+        mid_2 = ((bot_corner[0] + lower_corner[0]) / 2, (bot_corner[1] + lower_corner[1]) / 2)
+        return math.atan( (mid_1[1] - mid_2[1]) / (mid_1[0] - mid_2[0]))
 
     # rotation helper
     def get_height(mask_array):
@@ -96,6 +111,7 @@ def cropper(org_image_path, out_file_dir, predictor):
     mask_array = instances.pred_masks.numpy()  # pred masks are now nd-numpy arrays
     num_instances = mask_array.shape[0]  # number of books/created images
     mask_array = np.moveaxis(mask_array, 0, -1)
+    mask_array_instance = []  # initialize instances list
 
     # initialize zero image
     img = imread(str(org_image_path))
@@ -104,9 +120,9 @@ def cropper(org_image_path, out_file_dir, predictor):
 
     for i in range(num_instances):
         if labels[i] == "book_spine":
-            mask = np.array(mask_array[:, :, i:(i+1)], dtype=bool)
+            mask_array_instance.append(mask_array[:, :, i:(i+1)])
+            mask = np.array(mask_array_instance[i], dtype=bool)
             dilated_mask = binary_dilation(mask, iterations=10)
-
             # KEY LINE - if not mask array, then 255 (white), else copy from img
             output = np.where(dilated_mask == False, 0, img)
             im = Image.fromarray(output)
@@ -118,13 +134,13 @@ def cropper(org_image_path, out_file_dir, predictor):
 
             # rotate — TO DO gradient descent by MAX
             image_small = cv2.resize(image, (int(new_dims[0]/4), int(new_dims[1]/4)))
-            best_angle = (0, get_height(image_small))
+            best_angle = [0, get_height(image_small)]
 
             for t in range(180):
                 dst = rotate_bound(image_small, -t)
                 height = get_height(dst)
                 if height < best_angle[1]:
-                    best_angle = (t, height)
+                    best_angle = [t, height]
                     # best_image = dst
             best_image = rotate_bound(image, -best_angle[0])
 
@@ -179,7 +195,7 @@ def image_reader(image_path):
             if word == "used" or word == "bestseller":
                 print("used/bestseller detected, deleting")
                 continue
-            tl, _, br, _ = prediction[1]
+            tl, tr, br, bl = prediction[1]
             width = -tl[0] + br[0]
             height = -tl[1] + br[1]
             if width > height and height > long_side/50:
