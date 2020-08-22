@@ -102,7 +102,7 @@ def book_decider(read_text, book_list):
             filler = False
 
             # fillers
-            if word == "the" or word == "an":
+            if word == "the" or word == "an" or word == "to":
                 filler = True
 
             # author
@@ -129,12 +129,12 @@ def book_decider(read_text, book_list):
                         words_in_publisher += 1
 
         accuracy = (fillers_right + words_in_title + words_in_author + words_in_publisher)/total_words
-        print(f"Accuracy is {accuracy*100}%")
-        print(f"total words = {total_words}")
-        print(f"title = {words_in_title}")
-        print(f"author = {words_in_author}")
-        print(f"publisher = {words_in_publisher}")
-        print(f"fillers = {fillers_right}")
+        # print(f"Accuracy is {accuracy*100}%")
+        # print(f"total words = {total_words}", end=", ")
+        # print(f"title = {words_in_title}", end=", ")
+        # print(f"author = {words_in_author}", end=", ")
+        # print(f"publisher = {words_in_publisher}", end=", ")
+        # print(f"fillers = {fillers_right}")
 
         # An excellent choice requires an accuracy > .70 and words_in_title > 1
         # as well as words_in_title > 1 or words_in_publisher > 1.
@@ -152,26 +152,22 @@ def book_decider(read_text, book_list):
     return (None, decent_book)
 
 # key function, goes from text from image_reader to a book
-def text_to_book(book_text_pair):
-    second_choice = None
-    for book_text in book_text_pair:
-        if len(book_text.split()) < 2:
-            print("read_text length less than 2... rejecting")
-            return None
-        books = text_to_book_list_isbn(book_text)
-        great_option, decent_option = book_decider(book_text, books)
+def text_to_book(book_text):
+    if len(book_text.split()) < 2:
+        print("read_text length less than 2... rejecting")
+        return (None, None)
+    books = text_to_book_list_isbn(book_text)
+    great_option, decent_option = book_decider(book_text, books)
+    if great_option != None:
+        print("isbn got it...")
+        return (great_option, None) # done by isbn
+    else:
+        print("trying google api...")
+        books = text_to_book_list_google(book_text)
+        great_option, decent_option2 = book_decider(book_text, books)
         if great_option != None:
-            print("isbn got it...")
-            return great_option # done by isbn
-        else:
-            if second_choice == None:
-                second_choice = decent_option
-            print("trying google api...")
-            books = text_to_book_list_google(book_text)
-            great_option, decent_option = book_decider(book_text, books)
-            if great_option != None:
-                print("google got it...")
-                return great_option # done by google
-            elif second_choice == None:
-                second_choice = decent_option
-    return second_choice
+            print("google got it...")
+            return (great_option, None) # done by google
+        elif decent_option == None:
+            decent_option = decent_option2
+    return (None, decent_option)

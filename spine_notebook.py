@@ -10,7 +10,7 @@
 # 7. Don't always do all four reads... do the first two and see if necessary
 
 
-from ocr import cropper, image_reader
+from ocr import cropper, spine_reader
 from api import text_to_book
 from detectron2.config import get_cfg
 from detectron2.engine import DefaultPredictor
@@ -43,15 +43,29 @@ predictor = DefaultPredictor(cfg)
 
 # %% run cropper
 output_file_names = cropper(path_to_image, path_to_out, predictor)
-# image_reader(path_to_out + "/ideal_0.jpg")
+# spine_reader(path_to_out + "/ideal_0.jpg")
 # output_file_names = ["ideal_0", "ideal_1", "ideal_2"]
 
-# %% run image_reader and text_to_book
+# %% run spine_reader and text_to_book
 for i, file in enumerate(output_file_names):
-    read_image = image_reader(file)
-    if read_image != ("", ""):
-        book = text_to_book(read_image)
+    read_image = spine_reader(file)
+    if read_image == "":
+        if spine_reader(file, flip=True) == "":
+            print("Bad spine seg, skipping...")
+            continue
+    book, decent_book = text_to_book(read_image)
+    if book != None:
         book_list.append(book)
+    elif decent_book != None: # contrevercial
+        book_list.append(decent_book)
+    else:
+        print("flipping...")
+        read_image = spine_reader(file, flip=True)
+        book, decent_book = text_to_book(read_image)
+        if book != None:
+            book_list.append(book)
+        else:
+            book_list.append(decent_book)
 
 # %% output
 for i, book in enumerate(book_list):

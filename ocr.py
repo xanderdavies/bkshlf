@@ -17,7 +17,7 @@ import time
 
 # %% settings
 min_confidence = .5 # PLAY WITH
-long_side = 896     # PLAY WITH
+long_side = 928    # PLAY WITH
 padding = 0.06      # PLAY WITH
 east_path = "./shelves/frozen_east_text_detection.pb"
 classes = ["book_spine", "inc_spine", "no_text", "book_cover", "inc_cover"]
@@ -35,60 +35,7 @@ def cropper(org_image_path, out_file_dir, predictor):
             bottom_of_mask -= 1
         return (bottom_of_mask - top_of_mask)
 
-    # def new_rotate_idea(mask_array):
-    #     #assumes 0,0 in top left corner. may not be the case?
-    #     top_y = 0
-    #     bot_y = mask.shape[0] - 1
-    #     left_x = 0
-    #     right_x = mask.shape[1] - 1
-    #     while max(mask_array[top_y, :].flatten()) == 0:
-    #         top_y += 1
-    #     # print(f"top_y is {top_y}")
-    #     top_corner = (np.mean(np.where(mask_array[top_y, :] > 0)[0]), top_y)
-    #     # print(f"top_corner is {top_corner}")
-    #     while max(mask_array[bot_y, :].flatten()) == 0:
-    #         bot_y -= 1
-    #     # print(f"bottom_y is {bot_y}")
-    #     bot_corner = (np.mean(np.where(mask_array[bot_y, :] > 0)[0]), bot_y)
-    #     # print(f"bot_corner is {bot_corner}")
-    #     while max(mask_array[:, left_x].flatten()) == 0:
-    #         left_x += 1
-    #     # print(f"left_x = {left_x}")
-    #     left_corner = (left_x, np.mean(np.where(mask_array[:, left_x] > 0)[0]))
-    #     # print(f"left_corner is {left_corner}")
-    #     while max(mask_array[:, right_x].flatten()) == 0:
-    #         right_x -= 1
-    #     # print(f"right_x = {right_x}")
-    #     right_corner = (right_x, np.mean(np.where(mask_array[:, right_x] > 0)))
-    #     # print(f"right_corner is {right_corner}")
-    #     higher_corner = right_corner
-    #     lower_corner = left_corner
-    #     if right_corner[1] > left_corner[1]: # > bc weird array indexes
-    #         higher_corner = left_corner
-    #         lower_corner = right_corner
-    #
-    #     mid_1 = ((top_corner[0] + higher_corner[0]) / 2, (top_corner[1] + higher_corner[1]) / 2)
-    #     mid_2 = ((bot_corner[0] + lower_corner[0]) / 2, (bot_corner[1] + lower_corner[1]) / 2)
-    #     # print(f"mid_1: {mid_1}, mid_2: {mid_2}, atan: {math.atan( (mid_1[1] - mid_2[1]) / (mid_1[0] - mid_2[0]))}")
-    #     # print(f"slope is {(mid_1[1] - mid_2[1]) / (mid_1[0] - mid_2[0]) * 180/math.pi}")
-    #     # print(f"arctan is {int(-math.atan((mid_1[1] - mid_2[1]) / (mid_1[0] - mid_2[0])) * 180/math.pi)}")
-    #     return (180 - int(-math.atan((mid_1[1] - mid_2[1]) / (mid_1[0] - mid_2[0])) * 180/math.pi))
-
-    # rotation helper
-    def get_height(mask_array):
-        top_of_mask = mask.shape[0]
-        bottom_of_mask = 0
-        no_mask_yet = True
-        for row_number, row in enumerate(mask_array):
-            if max(row.flatten()) == 0: # why flatten needed?
-                if no_mask_yet:
-                    top_of_mask = mask.shape[0] - row_number
-            else:
-                no_mask_yet = False
-                bottom_of_mask = mask.shape[0] - row_number
-        return (top_of_mask - bottom_of_mask)
-
-    # resizing helper — can be improved, right now run twice
+    # resizing helper
     def get_new_dims(opened_image):
         (origH, origW) = opened_image.shape[:2]
         # scale based on long_side provided
@@ -100,13 +47,16 @@ def cropper(org_image_path, out_file_dir, predictor):
             (newW, newH) = (long_side, short_side)
         return (newW, newH)
 
+    tic = time.perf_counter()
     # open image, make spine predictions
     filename = (org_image_path.split("/")[-1]).split(".")[0]
     img = cv2.imread(org_image_path)
     outputs = predictor(img)
     instances = outputs["instances"].to('cpu')
-    print("prediction done...")
+    toc = time.perf_counter()
+    print(f"Prediction done in {toc - tic:0.4f} seconds")
 
+    tic = time.perf_counter()
     # bounding boxes
     boxes = instances.pred_boxes
     if isinstance(boxes, detectron2.structures.boxes.Boxes):
@@ -127,7 +77,9 @@ def cropper(org_image_path, out_file_dir, predictor):
     img = cv2.imread(str(org_image_path))
     output = np.zeros_like(img)
     output_file_names = []  # initialize file names list
+    toc = time.perf_counter()
 
+    print(f"Post-pred, pre-loop done in {toc - tic:0.4f} seconds")
     for i in range(num_instances):
         if labels[i] == "book_spine":
             tic = time.perf_counter()
@@ -149,12 +101,12 @@ def cropper(org_image_path, out_file_dir, predictor):
 
             # rotate — TO DO gradient descent by MAX
             tic2 = time.perf_counter()
-            small_img = cv2.resize(np.array(image), (int(new_dims[0]/5), int(new_dims[1]/5)))
-            best_angle = [0, get_height(small_img)]
+            small_img = cv2.resize(np.array(image), (int(new_dims[0]/4), int(new_dims[1]/4)))
+            best_angle = [0, new_get_height(small_img)]
 
             for t in range(0,180,2):
                 dst = rotate_bound(small_img, -t)
-                height = get_height(dst)
+                height = new_get_height(dst)
                 if height < best_angle[1]:
                     best_angle = [t, height]
                     # best_image = dst
@@ -180,8 +132,7 @@ def cropper(org_image_path, out_file_dir, predictor):
             image.save(f"{out_file_dir}/{filename}_{i}.jpg")
 
             toc = time.perf_counter()
-            print(f"Done in {toc - tic:0.4f} seconds")
-            print(f"Spine {i} done, rescaled to {newer_dims}")
+            print(f"Spine {i} done in {toc - tic:0.4f} seconds")
 
     return output_file_names
 
@@ -195,15 +146,16 @@ import re
 # weights for the detector and recognizer.
 pipeline = keras_ocr.pipeline.Pipeline()
 
-def image_reader(image_path):
+def spine_reader(image_path, flip=False):
     # !pip install keras-ocr
 
     # read image
     ig = cv2.imread(image_path)
 
+    if flip:
+        ig = rotate_bound(ig, 180)
     # TO DO detect if too dark/bright, and auto-fix
-    images = [ig, rotate_bound(ig, 90), rotate_bound(ig, 180),
-              rotate_bound(ig, 270)]
+    images = [ig, rotate_bound(ig, 90)]
 
     # Each list of predictions in prediction_groups is a list of
     # (word, box) tuples.
@@ -211,7 +163,6 @@ def image_reader(image_path):
 
     # Get text
     text = []
-    text_2 = []
 
     for i, predictions in enumerate(prediction_groups):
         for prediction in predictions:
@@ -222,29 +173,65 @@ def image_reader(image_path):
             tl, tr, br, bl = prediction[1]
             width = -tl[0] + br[0]
             height = -tl[1] + br[1]
-            if width > height and height > long_side/50:
+            if width > height and height > long_side/52:
                 if re.search("..", word) != None: # delete if single letter
-                    if i <= 1:
-                        text.append(word)
-                    else:
-                        text_2.append(word)
+                    text.append(word)
 
     text = ' '.join(text)
-    text_2 = ' '.join(text_2)
 
     print(f"text: {text}")
-    print(f"alt_text: {text_2}")
-
+    
     # # Plot the predictions
     # for predictions, image in zip(prediction_groups, images):
     #     keras_ocr.tools.drawAnnotations(image=image, predictions=predictions, ax=None)
     #     plt.show()
 
-    return (text, text_2)
+    return text
 
 
 
 # NONESSENTIAL (STILL USEFUL) BELOW
+
+
+# def new_rotate_idea(mask_array):
+#     #assumes 0,0 in top left corner. may not be the case?
+#     top_y = 0
+#     bot_y = mask.shape[0] - 1
+#     left_x = 0
+#     right_x = mask.shape[1] - 1
+#     while max(mask_array[top_y, :].flatten()) == 0:
+#         top_y += 1
+#     # print(f"top_y is {top_y}")
+#     top_corner = (np.mean(np.where(mask_array[top_y, :] > 0)[0]), top_y)
+#     # print(f"top_corner is {top_corner}")
+#     while max(mask_array[bot_y, :].flatten()) == 0:
+#         bot_y -= 1
+#     # print(f"bottom_y is {bot_y}")
+#     bot_corner = (np.mean(np.where(mask_array[bot_y, :] > 0)[0]), bot_y)
+#     # print(f"bot_corner is {bot_corner}")
+#     while max(mask_array[:, left_x].flatten()) == 0:
+#         left_x += 1
+#     # print(f"left_x = {left_x}")
+#     left_corner = (left_x, np.mean(np.where(mask_array[:, left_x] > 0)[0]))
+#     # print(f"left_corner is {left_corner}")
+#     while max(mask_array[:, right_x].flatten()) == 0:
+#         right_x -= 1
+#     # print(f"right_x = {right_x}")
+#     right_corner = (right_x, np.mean(np.where(mask_array[:, right_x] > 0)))
+#     # print(f"right_corner is {right_corner}")
+#     higher_corner = right_corner
+#     lower_corner = left_corner
+#     if right_corner[1] > left_corner[1]: # > bc weird array indexes
+#         higher_corner = left_corner
+#         lower_corner = right_corner
+#
+#     mid_1 = ((top_corner[0] + higher_corner[0]) / 2, (top_corner[1] + higher_corner[1]) / 2)
+#     mid_2 = ((bot_corner[0] + lower_corner[0]) / 2, (bot_corner[1] + lower_corner[1]) / 2)
+#     # print(f"mid_1: {mid_1}, mid_2: {mid_2}, atan: {math.atan( (mid_1[1] - mid_2[1]) / (mid_1[0] - mid_2[0]))}")
+#     # print(f"slope is {(mid_1[1] - mid_2[1]) / (mid_1[0] - mid_2[0]) * 180/math.pi}")
+#     # print(f"arctan is {int(-math.atan((mid_1[1] - mid_2[1]) / (mid_1[0] - mid_2[0])) * 180/math.pi)}")
+#     return (180 - int(-math.atan((mid_1[1] - mid_2[1]) / (mid_1[0] - mid_2[0])) * 180/math.pi))
+
 
 # import pytesseract
 # from pytesseract import Output
