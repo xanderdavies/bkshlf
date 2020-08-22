@@ -11,11 +11,11 @@
 
 
 from ocr import cropper, image_reader
-from isbn_api import text_to_book
+from api import text_to_book
 from detectron2.config import get_cfg
 from detectron2.engine import DefaultPredictor
 from detectron2 import model_zoo
-user = 'M'
+user = 'X'
 
 # %% define paths + initialize book_list
 if user == 'X':
@@ -42,9 +42,9 @@ cfg.DATASETS.TEST = ()
 predictor = DefaultPredictor(cfg)
 
 # %% run cropper
-#output_file_names = cropper(path_to_image, path_to_out, predictor)
-image_reader(path_to_out + "/ideal_0.jpg")
-#output_file_names = ["ideal_0", "ideal_1", "ideal_2"]
+output_file_names = cropper(path_to_image, path_to_out, predictor)
+# image_reader(path_to_out + "/ideal_0.jpg")
+# output_file_names = ["ideal_0", "ideal_1", "ideal_2"]
 
 # %% run image_reader and text_to_book
 for i, file in enumerate(output_file_names):
