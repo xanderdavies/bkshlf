@@ -1,6 +1,7 @@
 import re
 import requests
 import json
+from utils import in_string_ish
 
 isbn_header = {'Authorization': '44417_17eecbc4d201aa6115a43f4ddff496a4'}
 google_APIKEY = "AIzaSyCQCfV4eIoFOdWkXClJtPJYqWMU0Gds9RE"
@@ -13,110 +14,6 @@ class Book:
         self.description = description
         self.publisher = publisher
         self.image = image
-
-# Returns true if edit distance between s1 and s2 is one, else false
-def isEditDistanceOne(s1, s2):
-    m = len(s1)
-    n = len(s2)
-    if abs(m - n) > 1:
-        return False
-    count, i, j = (0, 0, 0)
-    while i < m and j < n:
-        if s1[i] != s2[j]: # If current characters don't match
-            if count == 1:
-                return False
-            if m > n: # If length of one string is more, then remove
-                i+=1
-            elif m < n:
-                j+=1
-            else:    # If lengths of both strings is same, inc both
-                i+=1
-                j+=1
-            count+=1 # Increment count of edits
-        else:    # if current characters match
-            i+=1
-            j+=1
-    if i < m or j < n: # if last character is extra in any string
-        count+=1
-    return count == 1
-
-# helper for choose_books, checks if word is "in" a sentence
-def word_in_string(word, sentence):
-    string_list = re.sub(r'[^A-Za-z0-9 ]+', '', sentence).lower().split()
-    for str in string_list:
-        if word == str or (len(word) > 2 and isEditDistanceOne(word, str)):
-            return True
-    return False
-
-# helper for text_to_book, goes from read_text + book_list to an
-# excellent or decent choice of book
-def choose_books(read_text, book_list):
-    if book_list == []:
-        return (None, None)
-
-    decent_book = None
-
-    if len(read_text.split()) < 2:
-        print("read_text length less than 2... rejecting")
-        return (None, None)
-
-    for book in book_list:
-        words_in_author = 0
-        words_in_booktext = 0
-        words_in_publisher = 0
-        author_words = []
-
-        split_read_text = read_text.lower().split()
-        split_read_text.sort()
-        book_title_word_list = re.sub(r'[^A-Za-z0-9 ]+', '', book.title).lower().split()
-        book_title_word_list.sort()
-
-        if (book_title_word_list == split_read_text) and (len(split_read_text) == len(book_title_word_list)):
-            print(f"{book.title} by {book.authors[0]} accepted with perfect title")
-            return (book, None)
-
-        # for each word read...
-        for word in split_read_text:
-            if word == "the" or word == "an":
-                continue
-            # check if in author
-            for author in book.authors:
-                if word_in_string(word, author):
-                    words_in_author += 1
-                    words_in_booktext += 1
-                    in_author = True
-                    author_words.append((word, author))
-                    break
-            if not word in author_words:
-                if word_in_string(word, book.title):
-                    words_in_booktext += 1
-                elif word_in_string(word, book.publisher):
-                    words_in_publisher += 1
-        if words_in_booktext >= 2 and (words_in_booktext - words_in_author) != 0:
-            if words_in_author >= 1 or words_in_publisher >= 1:
-                try:
-                    print(f"{book.title} by {book.authors[0]} accepted with {author_words} in author")
-                except IndexError:
-                    print(f"{book.title} by {book.authors} accepted with {author_words} in author")
-                return (book, None)
-            elif decent_book == None:
-                    decent_book = book
-                    try:
-                        print(f"{book.title} by {book.authors[0]} is a decent option")
-                    except IndexError:
-                        print(f"{book.title} by {book.authors} is a decent option")
-            else:
-                try:
-                    print(f"{book.title} by {book.authors[0]} rejected")
-                except IndexError:
-                    print(f"{book.title} by {book.authors} rejected")
-
-        else:
-            try:
-                print(f"{book.title} by {book.authors[0]} rejected")
-            except IndexError:
-                print(f"{book.title} by {book.authors} rejected")
-    return (None, decent_book)
 
 # helper for text_to_book, goes from text -> top 5 google results
 def text_to_book_list_google(text):
@@ -162,14 +59,108 @@ def text_to_book_list_isbn(text):
             return book_list
     return book_list
 
+# helper for text_to_book, goes from read_text + book_list to an
+# excellent or decent choice of book
+def book_decider(read_text, book_list):
+
+    if book_list == []:
+        return (None, None)
+
+    decent_book = None
+
+    for book in book_list:
+        title_word_list = re.sub(r'[^A-Za-z0-9 ]+', '', book.title).lower().split()
+
+        # summary + study guide cases
+        if "summary" in title_word_list:
+            if not in_string_ish("summary", read_text):
+                print(f"{book.title} rejected with 'summary' in title.")
+                continue
+            print("I should not be printing")
+        if "study" in title_word_list and "guide" in title_word_list:
+            if not in_string_ish("study", read_text) or not in_string_ish("guide", read_text):
+                print(f"{book.title} rejected with 'study guide' in title.")
+                continue
+
+        split_read_text = read_text.lower().split()
+        split_read_text.sort()
+        title_word_list.sort()
+
+        # read text == book title case
+        if title_word_list == split_read_text:
+            print(f"{book.title} by {book.authors[0]} accepted with perfect title")
+            return (book, None)
+
+        total_words = len(split_read_text)
+        fillers_right = 0
+        words_in_author = 0
+        words_in_title = 0
+        words_in_publisher = 0
+
+        # counting
+        for word in split_read_text:
+            in_author = False
+            filler = False
+
+            # fillers
+            if word == "the" or word == "an":
+                filler = True
+
+            # author
+            for author in book.authors:
+                if in_string_ish(word, author):
+                    if filler:
+                        fillers_right += 1
+                    else:
+                        words_in_author += 1
+                    in_author = True
+                    break
+
+            # title + publisher
+            if not in_author:
+                if in_string_ish(word, book.title):
+                    if filler:
+                        fillers_right += 1
+                    else:
+                        words_in_title += 1
+                elif in_string_ish(word, book.publisher):
+                    if filler:
+                        fillers_right += 1
+                    else:
+                        words_in_publisher += 1
+
+        accuracy = (fillers_right + words_in_title + words_in_author + words_in_publisher)/total_words
+        print(f"Accuracy is {accuracy*100}%")
+        print(f"total words = {total_words}")
+        print(f"title = {words_in_title}")
+        print(f"author = {words_in_author}")
+        print(f"publisher = {words_in_publisher}")
+        print(f"fillers = {fillers_right}")
+
+        # An excellent choice requires an accuracy > .70 and words_in_title > 1
+        # as well as words_in_title > 1 or words_in_publisher > 1.
+        # A decent choice requires accuracy > .50 and words_in_title > 1
+
+        if (accuracy > .7) and (words_in_title >= 1) and (words_in_author >= 1 or words_in_publisher >= 1):
+            print(f"{book.title} by {book.authors} accepted")
+            return (book, None)
+        elif (decent_book == None) and (accuracy > .5) and (words_in_title >= 1):
+            decent_book = book
+            print(f"{book.title} by {book.authors} is a decent option")
+        else:
+            print(f"{book.title} by {book.authors} rejected")
+
+    return (None, decent_book)
+
 # key function, goes from text from image_reader to a book
 def text_to_book(book_text_pair):
     second_choice = None
     for book_text in book_text_pair:
         if len(book_text) < 2:
+            print("read_text length less than 2... rejecting")
             return None
         books = text_to_book_list_isbn(book_text)
-        great_option, decent_option = choose_books(book_text, books)
+        great_option, decent_option = book_decider(book_text, books)
         if great_option != None:
             print("isbn got it...")
             return great_option # done by isbn
@@ -178,7 +169,7 @@ def text_to_book(book_text_pair):
                 second_choice = decent_option
             print("trying google api...")
             books = text_to_book_list_google(book_text)
-            great_option, decent_option = choose_books(book_text, books)
+            great_option, decent_option = book_decider(book_text, books)
             if great_option != None:
                 print("google got it...")
                 return great_option # done by google
