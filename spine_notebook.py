@@ -43,7 +43,7 @@ predictor = DefaultPredictor(cfg)
 
 # %% run cropper
 #output_file_names = cropper(path_to_image, path_to_out, predictor)
-print(text_to_book(image_reader(path_to_out + "/ideal_0.jpg"))[0].title)
+image_reader(path_to_out + "/ideal_0.jpg")
 #output_file_names = ["ideal_0", "ideal_1", "ideal_2"]
 
 # %% run image_reader and text_to_book

@@ -24,13 +24,38 @@ classes = ["book_spine", "inc_spine", "no_text", "book_cover", "inc_cover"]
 # https://github.com/facebookresearch/detectron2/issues/984 was helpful
 def cropper(org_image_path, out_file_dir, predictor):
 
+    def new_get_height(mask_array):
+        top_of_mask = 0
+        bottom_of_mask = mask.shape[0]
+        while max(mask_array[top_of_mask].flatten()) == 0:
+            top_of_mask += 1
+        while max(mask_array[bottom_of_mask].flatten()) == 0:
+            bottom_of_mask -= 1
+        return (bottom_of_mask - top_of_mask)
+
+    def new_rotate_idea(mask_array):
+        top_of_mask = 0
+        bottom_of_mask = mask.shape[0]
+        left_side_of_mask = 0
+        right_side_of_mask = mask.shape[1]
+        while max(mask_array[top_of_mask].flatten()) == 0:
+            top_of_mask += 1
+        while max(mask_array[bottom_of_mask].flatten()) == 0:
+            bottom_of_mask -= 1
+        while max(mask_array[:,left_side_of_mask].flatten()) == 0:
+            left_side_of_mask += 1
+        while max(mask_array[:,right_side_of_mask].flatten()) == 0:
+            right_side_of_mask -= 1
+
+        return (bottom_of_mask - top_of_mask)
+
     # rotation helper
     def get_height(mask_array):
         top_of_mask = mask.shape[0]
         bottom_of_mask = 0
         no_mask_yet = True
         for row_number, row in enumerate(mask_array):
-            if max(row.flatten()) == 0:
+            if max(row.flatten()) == 0: # why flatten needed?
                 if no_mask_yet:
                     top_of_mask = mask.shape[0] - row_number
             else:
