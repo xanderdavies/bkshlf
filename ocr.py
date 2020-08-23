@@ -17,7 +17,7 @@ import time
 
 # %% settings
 min_confidence = .5 # PLAY WITH
-long_side = 928    # PLAY WITH
+long_side = 950   # PLAY WITH
 padding = 0.06      # PLAY WITH
 east_path = "./shelves/frozen_east_text_detection.pb"
 classes = ["book_spine", "inc_spine", "no_text", "book_cover", "inc_cover"]
@@ -149,6 +149,8 @@ pipeline = keras_ocr.pipeline.Pipeline()
 def spine_reader(image_path, flip=False):
     # !pip install keras-ocr
 
+    tic = time.perf_counter()
+
     # read image
     ig = cv2.imread(image_path)
 
@@ -179,8 +181,10 @@ def spine_reader(image_path, flip=False):
 
     text = ' '.join(text)
 
-    print(f"text: {text}")
-    
+    toc = time.perf_counter()
+
+    print(f"text: {text}, done in {toc-tic:.4f} ")
+
     # # Plot the predictions
     # for predictions, image in zip(prediction_groups, images):
     #     keras_ocr.tools.drawAnnotations(image=image, predictions=predictions, ax=None)

@@ -1,7 +1,7 @@
 import re
 import requests
 import json
-from utils import in_string_ish
+from utils import in_string_ish, isEditDistanceOne
 
 isbn_header = {'Authorization': '44417_17eecbc4d201aa6115a43f4ddff496a4'}
 google_APIKEY = "AIzaSyCQCfV4eIoFOdWkXClJtPJYqWMU0Gds9RE"
@@ -86,7 +86,7 @@ def book_decider(read_text, book_list):
         title_word_list.sort()
 
         # read text == book title case
-        if title_word_list == split_read_text:
+        if all(map(lambda x, y: x==y or isEditDistanceOne(x, y), title_word_list, split_read_text)):
             print(f"{book.title} by {book.authors[0]} accepted with perfect title")
             return (book, None)
 
@@ -129,12 +129,12 @@ def book_decider(read_text, book_list):
                         words_in_publisher += 1
 
         accuracy = (fillers_right + words_in_title + words_in_author + words_in_publisher)/total_words
-        # print(f"Accuracy is {accuracy*100}%")
-        # print(f"total words = {total_words}", end=", ")
-        # print(f"title = {words_in_title}", end=", ")
-        # print(f"author = {words_in_author}", end=", ")
-        # print(f"publisher = {words_in_publisher}", end=", ")
-        # print(f"fillers = {fillers_right}")
+        print(f"Accuracy is {accuracy*100}%")
+        print(f"total words = {total_words}", end=", ")
+        print(f"title = {words_in_title}", end=", ")
+        print(f"author = {words_in_author}", end=", ")
+        print(f"publisher = {words_in_publisher}", end=", ")
+        print(f"fillers = {fillers_right}")
 
         # An excellent choice requires an accuracy > .70 and words_in_title > 1
         # as well as words_in_title > 1 or words_in_publisher > 1.
