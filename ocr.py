@@ -17,7 +17,7 @@ import time
 
 # %% settings
 min_confidence = .5 # PLAY WITH
-long_side = 950   # PLAY WITH
+long_side = 1000   # PLAY WITH
 padding = 0.06      # PLAY WITH
 east_path = "./shelves/frozen_east_text_detection.pb"
 classes = ["book_spine", "inc_spine", "no_text", "book_cover", "inc_cover"]
@@ -144,24 +144,32 @@ import re
 
 # keras-ocr will automatically download pretrained
 # weights for the detector and recognizer.
+# detector = keras_ocr.detection.Detector()
+# recognizer = keras_ocr.recognition.Recognizer()
+
 pipeline = keras_ocr.pipeline.Pipeline()
+
+# https://www.tensorflow.org/api_docs/python/tf/image/resize_with_pad
+# IS THE KEY
 
 def spine_reader(image_path, flip=False):
     # !pip install keras-ocr
-
     tic = time.perf_counter()
 
     # read image
     ig = cv2.imread(image_path)
 
     if flip:
-        ig = rotate_bound(ig, 180)
-    # TO DO detect if too dark/bright, and auto-fix
-    images = [ig, rotate_bound(ig, 90)]
+        ig = rotate(ig, 180)
+
+    ig2 = rotate_bound(ig, 90)
 
     # Each list of predictions in prediction_groups is a list of
     # (word, box) tuples.
-    prediction_groups = pipeline.recognize(images)
+
+    group_1 = pipeline.recognize([ig])
+    group_2 = pipeline.recognize([ig2])
+    prediction_groups = [group_1[0], group_2[0]]
 
     # Get text
     text = []
@@ -169,7 +177,7 @@ def spine_reader(image_path, flip=False):
     for i, predictions in enumerate(prediction_groups):
         for prediction in predictions:
             word = prediction[0]
-            if word == "used" or word == "bestseller":
+            if word == "used" or word == "bestseller": # or "updated"?
                 print("used/bestseller detected, deleting")
                 continue
             tl, tr, br, bl = prediction[1]
@@ -186,7 +194,7 @@ def spine_reader(image_path, flip=False):
     print(f"text: {text}, done in {toc-tic:.4f} ")
 
     # # Plot the predictions
-    # for predictions, image in zip(prediction_groups, images):
+    # for predictions, image in zip(prediction_groups, [ig, ig2]):
     #     keras_ocr.tools.drawAnnotations(image=image, predictions=predictions, ax=None)
     #     plt.show()
 
