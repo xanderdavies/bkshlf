@@ -1,3 +1,5 @@
+# Handles OCRed text to book.
+
 import re
 import requests
 import json

@@ -2,24 +2,22 @@
 
 # %% imports
 from imutils import rotate_bound, rotate
-from imutils.object_detection import non_max_suppression
-from PIL import Image, ImageDraw
-from matplotlib.image import imread
-from scipy.ndimage.morphology import binary_dilation
-from detectron2.data import detection_utils
+# from imutils.object_detection import non_max_suppression
+from PIL import Image
+# from matplotlib.image import imread
+# from scipy.ndimage.morphology import binary_dilation
+# from detectron2.data import detection_utils
 import detectron2
 import re
 import numpy as np
 import cv2
-import tensorflow as tf
-import math
+# import tensorflow as tf
 import time
 
 # %% settings
 min_confidence = .5 # PLAY WITH
-long_side = 1000   # PLAY WITH
+long_side = 1000   # PLAY WITH, scaling
 padding = 0.06      # PLAY WITH
-east_path = "./shelves/frozen_east_text_detection.pb"
 classes = ["book_spine", "inc_spine", "no_text", "book_cover", "inc_cover"]
 
 # %% cropper function - add buffer, fix straighten
@@ -99,6 +97,8 @@ def cropper(org_image_path, out_file_dir, predictor):
             toc3 = time.perf_counter()
             # print(f"Pre-rotation in {toc3 - tic3:0.4f} seconds")
 
+            cv2.imshow("spine", image)
+            cv2.waitKey()
             # rotate — TO DO gradient descent by MAX
             tic2 = time.perf_counter()
             small_img = cv2.resize(np.array(image), (int(new_dims[0]/4), int(new_dims[1]/4)))
@@ -122,8 +122,8 @@ def cropper(org_image_path, out_file_dir, predictor):
             best_image = cv2.resize(best_image, newer_dims)
 
             # # IF WANT TO SHOW IMAGE
-            # cv2.imshow("spine", best_image)
-            # cv2.waitKey()
+            cv2.imshow("spine", best_image)
+            cv2.waitKey()
 
             # save and update file names list
             output_file_names.append(f"{out_file_dir}/{filename}_{i}.jpg")
@@ -203,7 +203,7 @@ def spine_reader(image_path, flip=False):
 
 
 # NONESSENTIAL (STILL USEFUL) BELOW
-
+# east_path = "./shelves/frozen_east_text_detection.pb"
 
 # def new_rotate_idea(mask_array):
 #     #assumes 0,0 in top left corner. may not be the case?
@@ -244,7 +244,7 @@ def spine_reader(image_path, flip=False):
 #     # print(f"arctan is {int(-math.atan((mid_1[1] - mid_2[1]) / (mid_1[0] - mid_2[0])) * 180/math.pi)}")
 #     return (180 - int(-math.atan((mid_1[1] - mid_2[1]) / (mid_1[0] - mid_2[0])) * 180/math.pi))
 
-
+# import math
 # import pytesseract
 # from pytesseract import Output
 # import scipy.misc
