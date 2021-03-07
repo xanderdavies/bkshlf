@@ -1,48 +1,44 @@
 # BKSHLF end-to-end workflow
 
-# FOR MAX, CURRENT TODO/ISSUES:
-# 1. Try goodreads DONE
-# 2. Handle autobrightness
-# 3. Make sure at least one word detected is in author or publisher name DONE
-# 4. Books where title is spelled out one letter at a time :/
-# 5. Has to be horizontal image rn?
-# 6. Teach the ocr new fonts?
-# 7. Don't always do all four reads... do the first two and see if necessary
-
-
-from ocr import cropper, spine_reader
-from api import text_to_book
-from detectron2.config import get_cfg
-from detectron2.engine import DefaultPredictor
-from detectron2 import model_zoo
+################################################################################
+# CONFIG
 user = 'X'
-
-# %% define paths + initialize book_list
 if user == 'X':
-    path_to_image = "/Users/xanderdavies/Desktop/bkshlf/github/shelves/val/ideal.jpg"
-    path_to_out = "/Users/xanderdavies/Desktop/bkshlf/github/shelves/output_images"
-    path_to_weights = "/Users/xanderdavies/Desktop/bkshlf/github/shelves/saved_models/model_final.pth"
+    path_to_image = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/val/ideal.jpg"
+    path_to_out = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/output_images"
+    path_to_weights = "/Users/xanderdavies/Desktop/bkshlf/shelf/shelves/saved_models/model_final.pth"
 
 elif user == 'M':
     path_to_image = "/Users/maxnadeau/Documents/ExtraProjects/bookshelf/new_bs/shelves/val/ideal.JPG"
     path_to_out = "/Users/maxnadeau/Documents/ExtraProjects/bookshelf/new_bs/shelves/output_images"
     path_to_weights = "/Users/maxnadeau/Documents/ExtraProjects/bookshelf/new_bs/shelves/saved_models/model_final.pth"
-
 book_list = []
+
+################################################################################
+# SEGMENTATION
+from detectron2.config import get_cfg
+from detectron2.engine import DefaultPredictor
+from detectron2 import model_zoo
+from segmentation import cropper # from segmentation.py
 
 # define segmentation model, import weights from a saved model (.pth)
 cfg = get_cfg()
 cfg.merge_from_file(model_zoo.get_config_file(
-    "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
-cfg.MODEL.WEIGHTS = path_to_weights
-cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.4  # try experimenting with this
+    "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")) # why necessary? TODO
 cfg.MODEL.DEVICE = "cpu"
-cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1 # only one class.
-cfg.DATASETS.TEST = ()
+cfg.MODEL.WEIGHTS = path_to_weights #.pth file
+cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.4  # try experimenting with this
+cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1 # book is the only class
 predictor = DefaultPredictor(cfg)
 
 # run cropper, see ocr.py for details
 output_file_names = cropper(path_to_image, path_to_out, predictor)
+
+
+################################################################################
+# OCR + API
+from ocr import spine_reader
+from api import text_to_book
 
 # run spine_reader and text_to_book, see ocr.py and api.py
 for i, file in enumerate(output_file_names):
@@ -75,7 +71,20 @@ for i, book in enumerate(book_list):
         except IndexError:
             print(f"{i+1}. {book.title} by {book.authors}")
 
+
+
+
+
 ###############################
+# OLD STUFF / TODO (ignore please)
+# 1. Try goodreads DONE
+# 2. Handle autobrightness
+# 3. Make sure at least one word detected is in author or publisher name DONE
+# 4. Books where title is spelled out one letter at a time :/
+# 5. Has to be horizontal image rn?
+# 6. Teach the ocr new fonts?
+# 7. Don't always do all four reads... do the first two and see if necessary
+
 # %% possible pip installs ((colab has CUDA 10.1 + torch 1.6)):
 # HELPFUL !conda install -c pytorch torchvision cudatoolkit pytorch
 # !sudo -H pip3 install --ignore-installed PyYAML
